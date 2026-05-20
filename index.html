@@ -334,7 +334,7 @@
         <p><strong>Mode 3 (Homology):</strong> Comparing how two different letters transform. Form: "X to D1, Y to D2." Same homology pattern (unordered direction pair) is a match.</p>
         <p><strong>Mode 4 (Interface):</strong> Two multi-step paths and their endpoint relationship. Form: "X to D1 then D2, Y to D3 then D4, X is D5 of Y." Same step-directions and same connecting direction is a match.</p>
         <p><strong>Mode 5 (Algebraic Symmetry):</strong> Same "ratio of change" — same transformation type (Inversion vs Rotation) and same axis (Vertical/Horizontal/mixed) on both pairs. No identity (D→D) operators are ever generated; every premise describes a real shift.</p>
-        <p><strong>Mode 6 (Transitive Composition):</strong> Three-clause chain with validation: "D1 to D2 of X, D2 to D3 of Y, D1 to D3claim of X." Clauses 1+2 chain through midpoint D2 (X has the first step, Y bridges). Clause 3 asserts the composite on X. About 30% of trials assert a FALSE composite (rejection trap). User must compose the chain, validate the assertion, and encode for n-back. Valid trials match on composite (D1→D3) class; invalid trials all share one rejection match-class.</p>
+        <p><strong>Mode 6 (Transitive Composition):</strong> Three-clause chain with validation: "D1 to D2 of X, D2 to D3 of Y, so D1 to D3claim of X." Clauses 1+2 chain through midpoint D2 (X has the first step, Y bridges). The "so" binder marks clause 3 as the asserted consequence the user must validate. About 30% of trials assert a FALSE composite (rejection trap). User must compose the chain, validate the assertion, and encode for n-back. Valid trials match on composite (D1→D3) class; invalid trials all share one rejection match-class.</p>
         <h3>Tips</h3>
         <p>Symbol letters (B, C, X, etc.) are <strong>distractors</strong> — only the directional structure matters. The letter A is never used (it can be confused with "a" in speech) — the pool is B, C, D, E, F, G, H, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z.</p>
         <p>Use <strong>Adaptive N</strong> to let the game auto-tune difficulty (the Jaeggi protocol).</p>
@@ -1960,12 +1960,14 @@
             else if (m === 'M6') {
                 // M6 (Transitive Composition): 2-letter chain with composite assertion on X.
                 // p[1]=D1, p[2]=D2, p[3]=D3 (true chain endpoint), p[4]=D3claim, p[5]=validity
-                // Surface: "D1 to D2 of X, D2 to D3 of Y, D1 to D3claim of X"
+                // Surface: "D1 to D2 of X, D2 to D3 of Y, so D1 to D3claim of X"
                 // X appears in clauses 1 and 3 (the first step + the asserted composite).
                 // Y appears in clause 2 (the bridge step through D2).
-                // User computes the chain composite (D1→D3 via D2) and validates
-                // against the asserted D1→D3claim in clause 3.
-                text = `${REL[p[1]]} to ${REL[p[2]]} of ${s1}, ${REL[p[2]]} to ${REL[p[3]]} of ${s2}, ${REL[p[1]]} to ${REL[p[4]]} of ${s1}`;
+                // The "so" binder makes the validation task syntactically explicit:
+                // clause 3 is the ASSERTED CONSEQUENCE of clauses 1+2, which the
+                // user must validate by computing the chain composite (D1→D3 via D2)
+                // and comparing against the asserted D1→D3claim.
+                text = `${REL[p[1]]} to ${REL[p[2]]} of ${s1}, ${REL[p[2]]} to ${REL[p[3]]} of ${s2}, so ${REL[p[1]]} to ${REL[p[4]]} of ${s1}`;
             }
             else text = `${s1} is ${REL[p[1]]} of ${s2}`;
 
@@ -2826,4 +2828,4 @@
     window.__imagi = engine;
 </script>
 </body>
-  </html>
+</html>
