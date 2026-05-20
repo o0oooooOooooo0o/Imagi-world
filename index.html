@@ -1,1 +1,2829 @@
-...
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>🌀 IMAGI-WORLD: Neural Topology 🌀</title>
+  <style>
+    :root {
+      --gold: linear-gradient(to right, #bf953f 0%, #fcf6ba 20%, #b38728 40%, #fbf5b7 60%, #aa771c 80%, #bf953f 100%);
+      --bg: #010103;
+      --panel: #0a0c10;
+      --green: #2ecc71;
+      --red: #e74c3c;
+      --pink: #e94560;
+      --yellow: #ffd700;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg); color: #eee; min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 10px; overflow-x: hidden; touch-action: manipulation;
+    }
+
+    h1 {
+      margin: 15px 0; font-size: clamp(1.8rem, 10vw, 3.2rem); text-align: center;
+      letter-spacing: 5px; font-weight: 900; background: var(--gold);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+      filter: drop-shadow(0 0 12px rgba(255, 215, 0, 0.9));
+      text-transform: uppercase; animation: shimmer 6s infinite linear; background-size: 200% auto;
+    }
+    @keyframes shimmer { to { background-position: 200% center; } }
+    @keyframes nFlash { 0% { transform: scale(1); color: var(--yellow); } 50% { transform: scale(1.6); color: var(--green); } 100% { transform: scale(1); color: var(--yellow); } }
+    @keyframes nFlashDown { 0% { transform: scale(1); color: var(--yellow); } 50% { transform: scale(0.7); color: var(--pink); } 100% { transform: scale(1); color: var(--yellow); } }
+    .n-flash-up { animation: nFlash 0.7s ease-out; display: inline-block; }
+    .n-flash-down { animation: nFlashDown 0.7s ease-out; display: inline-block; }
+
+    .container { max-width: 500px; width: 100%; }
+
+    .controls {
+      background: var(--panel); padding: 25px; border-radius: 20px;
+      margin-bottom: 15px; border: 1px solid #1a1a1a; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    }
+
+    .control-group { margin-bottom: 15px; }
+    label { display: block; margin-bottom: 6px; font-weight: bold; color: var(--yellow); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1.5px; }
+
+    input[type="range"] { width: 100%; height: 10px; background: #151921; border-radius: 5px; outline: none; -webkit-appearance: none; }
+    input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 28px; height: 28px; background: var(--yellow); border-radius: 50%; box-shadow: 0 0 15px var(--yellow); border: 2px solid #000; cursor: pointer; }
+    input[type="range"]::-moz-range-thumb { width: 28px; height: 28px; background: var(--yellow); border-radius: 50%; box-shadow: 0 0 15px var(--yellow); border: 2px solid #000; cursor: pointer; }
+
+    select { width: 100%; padding: 14px; background: #000; color: #fff; border: 1px solid #333; border-radius: 12px; font-size: 0.9rem; font-weight: 600; outline: none; }
+
+    .toggle-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .toggle-row label { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; color: #888; margin: 0; cursor: pointer; }
+    .toggle-row input { width: 18px; height: 18px; accent-color: var(--yellow); }
+
+    .button-group { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
+    button { padding: 18px; border-radius: 14px; border: none; font-weight: 900; cursor: pointer; text-transform: uppercase; transition: 0.2s; font-family: inherit; touch-action: manipulation; }
+    button:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
+
+    #start-btn { flex: 2; background: linear-gradient(135deg, var(--yellow), #b38728); color: #000; min-width: 140px; }
+    #pause-btn { flex: 1; background: #161616; color: var(--yellow); border: 1px solid #302810; min-width: 80px; }
+    #stop-btn { flex: 1; background: #121212; color: var(--pink); border: 1px solid #301010; min-width: 80px; }
+    button:disabled { opacity: 0.15; pointer-events: none; }
+
+    .game-area {
+      background: #040406; padding: 30px; border-radius: 30px;
+      text-align: center; border: 1px solid #111; min-height: 580px;
+      display: flex; flex-direction: column; justify-content: space-between;
+      box-shadow: inset 0 0 60px rgba(0,0,0,0.9);
+    }
+
+    #countdown-box { font-size: 7rem; font-weight: 900; color: var(--yellow); height: 140px; display: flex; align-items: center; justify-content: center; text-shadow: 0 0 35px rgba(255, 215, 0, 0.7); }
+
+    .premise-display {
+      color: #fff; margin: 10px 0; font-style: italic;
+      min-height: 110px; display: flex; align-items: center; justify-content: center;
+      line-height: 1.15; text-shadow: 0 0 25px rgba(255,255,255,0.15); padding: 10px 6px;
+      font-weight: 800; transition: opacity 0.2s, filter 0.2s;
+      /* Single horizontal line — never wraps. JS auto-sizes font-size to fit. */
+      white-space: nowrap; overflow: hidden;
+      /* Base font-size (JS shrinks this if text overflows). */
+      font-size: clamp(1.4rem, 5.5vw, 3rem);
+    }
+    #premise-display {
+      /* Override only metric properties — JS controls font-size dynamically */
+      min-height: 120px;
+      width: 100%;
+    }
+    .premise-display.muted { opacity: 0.06; filter: blur(10px); }
+    .premise-display.hidden-mode { opacity: 0; }
+
+    /* Trial activity pulse — gives a visible cue when audio-only/muted */
+    .trial-pulse {
+      display: inline-block; width: 22px; height: 22px; border-radius: 50%;
+      background: var(--yellow); box-shadow: 0 0 22px var(--yellow);
+      animation: pulse 0.9s infinite ease-in-out;
+    }
+    @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 0.8 } 50% { transform: scale(1.3); opacity: 1 } }
+
+    .response-buttons { display: flex; flex-direction: column; gap: 15px; width: 100%; }
+    @media (min-width: 450px) { .response-buttons { flex-direction: row; } }
+    .response-buttons button { flex: 1; padding: 35px 20px; font-size: 1.8rem; border: 2px solid transparent; border-radius: 20px; }
+
+    #match-btn { background: rgba(46, 204, 113, 0.05); color: var(--green); border-color: rgba(46, 204, 113, 0.2); }
+    #no-match-btn { background: rgba(231, 76, 60, 0.05); color: var(--red); border-color: rgba(231, 76, 60, 0.2); }
+    #match-btn:active, #match-btn.flash { background: var(--green); color: #000; }
+    #no-match-btn:active, #no-match-btn.flash { background: var(--red); color: #fff; }
+
+    .timer-container { width: 100%; height: 8px; background: #111; margin-top: 15px; border-radius: 4px; overflow: hidden; position: relative; }
+    #timer-bar { width: 0%; height: 100%; background: var(--yellow); }
+
+    .session-bar { width: 100%; height: 3px; background: #0a0a0a; margin-top: 6px; border-radius: 2px; overflow: hidden; }
+    #session-progress { width: 0%; height: 100%; background: linear-gradient(to right, #b38728, var(--yellow)); transition: width 0.5s; }
+
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 25px; }
+    .stat-box { background: #08080c; padding: 12px 4px; border-radius: 12px; border: 1px solid #111; }
+    /* Practice mode hides score-only stat boxes and adjusts grid to remaining columns */
+    body.practice-active .stats { grid-template-columns: 1fr; }
+    body.practice-active .score-only { display: none; }
+    body.practice-active #feedback { display: none; }
+    .stat-label { font-size: 0.5rem; color: #444; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px; }
+    .stat-value { font-size: 1.0rem; font-weight: 900; color: #bf953f; }
+    #feedback { font-size: 1.4rem; font-weight: 900; min-height: 36px; text-align: center; transition: color 0.15s; }
+
+    .hint { font-size: 0.6rem; color: #555; text-align: center; margin-top: 8px; letter-spacing: 1px; }
+
+    /* Modal panels (summary / history / tutorial) — true overlay with backdrop */
+    .modal {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0, 0, 0, 0.88);
+      z-index: 200;
+      align-items: flex-start; justify-content: center;
+      padding: 40px 16px;
+      overflow-y: auto;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      animation: modal-fade 0.18s ease-out;
+    }
+    .modal.show { display: flex; }
+    .modal > .modal-inner {
+      background: var(--panel);
+      padding: 30px 26px 26px;
+      border-radius: 20px;
+      border: 1px solid #333;
+      max-width: 540px;
+      width: 100%;
+      max-height: calc(100vh - 80px);
+      overflow-y: auto;
+      position: relative;
+      box-shadow: 0 25px 80px rgba(0,0,0,0.9);
+      animation: modal-slide 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes modal-fade { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes modal-slide { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    /* Close (×) button at top-right of every modal */
+    .modal-close {
+      position: absolute; top: 12px; right: 14px;
+      width: 36px; height: 36px;
+      background: #000; color: var(--yellow);
+      border: 1px solid #333; border-radius: 50%;
+      font-size: 1.3rem; font-weight: 900; line-height: 1;
+      cursor: pointer; padding: 0;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, color 0.15s, transform 0.15s;
+    }
+    .modal-close:hover, .modal-close:focus { background: var(--yellow); color: #000; transform: scale(1.08); outline: none; }
+    .modal h2 { color: var(--yellow); text-align: center; margin-bottom: 15px; letter-spacing: 3px; padding-right: 30px; }
+    .modal h3 { color: var(--yellow); margin: 15px 0 8px; font-size: 0.9rem; letter-spacing: 2px; }
+    .modal p { font-size: 0.85rem; color: #ccc; line-height: 1.5; margin-bottom: 8px; }
+    .modal code { background: #000; padding: 2px 6px; border-radius: 4px; color: var(--yellow); font-size: 0.8rem; }
+    .modal .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #1a1a1a; font-size: 0.9rem; }
+    .modal .row span:first-child { color: #888; }
+    .modal .row span:last-child { color: var(--yellow); font-weight: 900; }
+    .modal .row.divider { border-top: 1px solid #2a2a1a; margin-top: 8px; padding-top: 12px; border-bottom: none; }
+
+    .small-btn { padding: 10px; font-size: 0.7rem; background: #222; color: var(--yellow); border-radius: 10px; }
+    .modal-actions { display: flex; gap: 8px; margin-top: 15px; flex-wrap: wrap; }
+    .modal-actions button { flex: 1; min-width: 100px; padding: 12px; font-size: 0.75rem; }
+
+    /* d' sparkline */
+    #dprime-chart { width: 100%; height: 60px; margin: 10px 0; background: #050507; border-radius: 8px; }
+
+    #paused-overlay, #confirm-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.88); display: none;
+      align-items: center; justify-content: center; z-index: 100; flex-direction: column; gap: 20px;
+      padding: 20px;
+    }
+    #paused-overlay { cursor: pointer; }
+    #paused-overlay.show, #confirm-overlay.show { display: flex; }
+    #paused-overlay h2 { color: var(--yellow); font-size: 2.5rem; letter-spacing: 8px; }
+    #paused-overlay p { color: #888; font-size: 0.9rem; }
+    #confirm-overlay .confirm-box { background: var(--panel); padding: 30px; border-radius: 20px; border: 1px solid #333; max-width: 360px; width: 100%; text-align: center; }
+    #confirm-overlay h3 { color: var(--yellow); margin-bottom: 10px; letter-spacing: 3px; }
+    #confirm-overlay p { color: #ccc; margin-bottom: 20px; font-size: 0.9rem; }
+    #confirm-overlay .btn-row { display: flex; gap: 10px; }
+    #confirm-overlay .btn-row button { flex: 1; padding: 14px; }
+    #confirm-yes { background: var(--pink); color: #fff; }
+    #confirm-no { background: #222; color: var(--yellow); }
+
+    /* Crash-recovery banner */
+    #recovery-banner {
+      display: none; background: #1a1f0a; border: 1px solid #4a4520; border-radius: 12px;
+      padding: 12px 15px; margin-bottom: 15px; font-size: 0.85rem; color: var(--yellow);
+    }
+    #recovery-banner.show { display: block; }
+    #recovery-banner .actions { display: flex; gap: 8px; margin-top: 10px; }
+    #recovery-banner button { flex: 1; padding: 8px; font-size: 0.7rem; }
+  </style>
+</head>
+<body>
+
+<main class="container">
+    <h1>IMAGI-WORLD</h1>
+
+    <div id="recovery-banner" role="alert">
+      <div id="recovery-text">Previous session interrupted. Stats were saved.</div>
+      <div class="actions">
+        <button class="small-btn" id="recovery-view">View stats</button>
+        <button class="small-btn" id="recovery-dismiss">Dismiss</button>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="control-group">
+          <label for="n-slider">N-Back Window: <span id="n-val" style="color:var(--yellow)">1</span></label>
+          <input type="range" id="n-slider" min="1" max="10" value="1" aria-label="N-back window size">
+      </div>
+      <div class="control-group">
+          <label for="logic-mode">Topology Geometry:</label>
+          <select id="logic-mode" aria-label="Logic mode">
+              <option value="0">Mode 0: Standard Linear</option>
+              <option value="1">Mode 1: Dialectical Superposition</option>
+              <option value="2">Mode 2: Semantic Tensor</option>
+              <option value="3">Mode 3: System Homology</option>
+              <option value="4">Mode 4: Complementary Interface</option>
+              <option value="5">Mode 5: Algebraic Relational Symmetry</option>
+              <option value="6">Mode 6: Transitive Composition</option>
+          </select>
+      </div>
+      <div class="control-group">
+          <label for="spt-slider">Thinking Window: <span id="spt-val" style="color:var(--yellow)">8.0s</span></label>
+          <input type="range" id="spt-slider" min="2" max="300" step="1" value="8" aria-label="Thinking window seconds">
+      </div>
+      <div class="control-group">
+          <label for="session-slider">Session Duration: <span id="session-val" style="color:var(--yellow)">15 MIN</span></label>
+          <input type="range" id="session-slider" min="5" max="600" step="5" value="15" aria-label="Session duration minutes">
+      </div>
+      <div class="control-group">
+          <label for="prob-slider">Match Probability: <span id="prob-val" style="color:var(--yellow)">30%</span></label>
+          <input type="range" id="prob-slider" min="10" max="50" step="5" value="30" aria-label="Match probability percent">
+      </div>
+      <div class="control-group">
+          <label for="rate-slider">Speech Rate: <span id="rate-val" style="color:var(--yellow)">0.85x</span></label>
+          <input type="range" id="rate-slider" min="0.6" max="1.4" step="0.05" value="0.85" aria-label="Speech rate">
+      </div>
+      <div class="control-group">
+          <label for="interference-slider">Cognitive Interference: <span id="interference-val" style="color:var(--yellow)">60%</span></label>
+          <input type="range" id="interference-slider" min="0" max="100" step="5" value="60" aria-label="Cognitive interference level">
+      </div>
+      <div class="control-group toggle-row">
+          <label><input type="checkbox" id="hide-text" checked> Hide text on audio</label>
+          <label><input type="checkbox" id="audio-only"> Audio-only mode</label>
+          <label><input type="checkbox" id="keyboard"> Keyboard (J/K)</label>
+          <label><input type="checkbox" id="haptic" checked> Haptic feedback</label>
+          <label><input type="checkbox" id="adaptive"> Adaptive N</label>
+          <label><input type="checkbox" id="mute-click"> Mute attention pulse</label>
+          <label><input type="checkbox" id="confirm-stop" checked> Confirm before sever</label>
+          <label title="Listen and practice mentally — no scoring, no right/wrong feedback shown"><input type="checkbox" id="practice-mode"> Practice mode (no feedback)</label>
+      </div>
+      <div class="button-group">
+          <button id="start-btn" aria-label="Start session">Initialize Link</button>
+          <button id="pause-btn" disabled aria-label="Pause session">Pause</button>
+          <button id="stop-btn" disabled aria-label="Stop session">Sever</button>
+      </div>
+      <div class="button-group">
+          <button id="tutorial-btn" class="small-btn" style="flex:1">📘 TUTORIAL</button>
+          <button id="history-btn" class="small-btn" style="flex:1">VIEW HISTORY</button>
+          <button id="export-btn" class="small-btn" style="flex:1">EXPORT CSV</button>
+      </div>
+    </div>
+
+    <div class="game-area" role="main">
+        <div id="feedback" aria-live="polite" aria-atomic="true"></div>
+        <div id="countdown-box" aria-live="assertive"></div>
+        <div id="premise-display" aria-live="polite">SYSTEM_READY</div>
+        <div class="response-buttons">
+            <button id="match-btn" disabled aria-label="Match — same as N back">MATCH</button>
+            <button id="no-match-btn" disabled aria-label="Not a match">NO_MATCH</button>
+        </div>
+        <div class="timer-container" role="timer" aria-label="Thinking window remaining"><div id="timer-bar"></div></div>
+        <div class="session-bar"><div id="session-progress"></div></div>
+        <div class="hint" id="kbd-hint" style="display:none">J/F = MATCH &nbsp; • &nbsp; K/D = NO_MATCH &nbsp; • &nbsp; P = PAUSE &nbsp; • &nbsp; ESC = STOP</div>
+        <div class="stats">
+            <div class="stat-box"><div class="stat-label">Cycle</div><div id="trial-count" class="stat-value">0</div></div>
+            <div class="stat-box score-only"><div class="stat-label">Hits</div><div id="hits" class="stat-value">0</div></div>
+            <div class="stat-box score-only"><div class="stat-label">d'</div><div id="dprime" class="stat-value">0.00</div></div>
+            <div class="stat-box score-only"><div class="stat-label">Bal Acc</div><div id="accuracy" class="stat-value">0%</div></div>
+        </div>
+    </div>
+
+    <div id="summary" class="modal" role="dialog" aria-label="Session summary" aria-modal="true">
+      <div class="modal-inner">
+        <button class="modal-close" data-close="summary" aria-label="Close">×</button>
+        <h2 id="summary-title">SESSION COMPLETE</h2>
+        <canvas id="dprime-chart" width="440" height="60" aria-label="d-prime over recent sessions"></canvas>
+        <div id="summary-body"></div>
+        <div class="modal-actions">
+          <button id="dismiss-summary" class="small-btn">CLOSE</button>
+          <button id="clear-btn" class="small-btn">CLEAR HISTORY</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="tutorial" class="modal" role="dialog" aria-label="Tutorial" aria-modal="true">
+      <div class="modal-inner">
+        <button class="modal-close" data-close="tutorial" aria-label="Close">×</button>
+        <h2>HOW TO PLAY</h2>
+        <p>You'll hear spatial premises like <em>"B is North of C."</em> Your job: was the n-back-ago premise the <strong>same kind</strong> as this one? Press <strong>MATCH</strong> or <strong>NO_MATCH</strong>.</p>
+        <p>At N=1, compare to the previous trial. At N=2, two trials back, and so on, up to N=10 for expert-level training. Typical adult working-memory span is around 4 items — anything past N=5 is exceptional.</p>
+        <h3>The Da Vinci Method</h3>
+        <p>Da Vinci's notebooks pulled the swirl of water around an obstacle into the swirl of blood around heart valves and into the curl of hair in a portrait. Three universes apart, one structural insight. This is the cognitive move the directions in IMAGI-WORLD are meant to train.</p>
+        <p><strong>Directions are not fixed labels.</strong> Do not memorize "North = generalize" or "West = opposite." That turns the game into lookup and kills relational reasoning. A direction is a <em>positional marker</em> whose meaning is constructed fresh from (a) the two letters you anchor, (b) the cognitive frame you build around the pair, and (c) the contrast the other directions in the trial set up by opposition.</p>
+        <p><strong>Anchor across radical domain gaps.</strong> If B and C are letters, don't decode them both as biology. Let B be a beehive and C be a courtroom. Let L be lightning and M be mythology. The wider the cross-domain leap, the more relational work the direction operator has to do — and that work is the training target.</p>
+        <p>Each trial, build a new operator. The "same" North can mean unwitting structural inheritance in one trial, biological pattern lent to an abstract system in the next, and engineering-tension-mirrored-as-acoustic-tension in the next. The adaptivity itself is the skill.</p>
+        <h3>Worked Mode 0 examples — "B is North of C"</h3>
+        <p>Three different anchorings of the same premise, each producing a different "North" operator:</p>
+        <p><strong>1.</strong> B = beehive geometry, C = courtroom seating. "North" = <em>unwitting structural inheritance across eras</em>. The hexagonal packing of bees predates and silently shapes how jury arrangements pack people into efficient seating.</p>
+        <p><strong>2.</strong> B = breath, C = currency. "North" = <em>bodily prototype lent to an abstract circulation system</em>. Rhythmic intake-and-output of breath is the biological original that the in-and-out of money through an economy unknowingly mimics.</p>
+        <p><strong>3.</strong> B = bridge cables, C = cathedral chant. "North" = <em>physical-tension principle mirrored as acoustic-tension principle</em>. The engineering math of distributed cable tension is the same shape as polyphonic voices holding each other in harmonic suspension.</p>
+        <h3>Two more — "L is West of M"</h3>
+        <p><strong>4.</strong> L = lullaby, M = military cadence. "West" = <em>same-mechanism, opposite-intent</em>. Both use repeated rhythmic vocalization to synchronize a body to an external authority, but the lullaby disarms and the cadence weaponizes.</p>
+        <p><strong>5.</strong> L = lichen, M = manuscript marginalia. "West" = <em>parasitic encroachment on a host not designed for it</em>. Both colonize the unused edges of a structure and quietly extend the structure's meaning over time.</p>
+        <p>Notice "North" meant three different things across examples 1–3, and "West" meant two different things across examples 4–5. The direction is the prompt; the operator is what you construct. That construction is what's being trained.</p>
+        <p>This adaptive anchoring engages frontal-polar cortex and turns direction-matching into the kind of cross-domain relational reasoning that transfers to analogy and matrix-reasoning tests.</p>
+        <h3>Match Rules per Mode</h3>
+        <p><strong>Mode 0 (Linear):</strong> Same single direction between two letters.</p>
+        <p><strong>Mode 1 (Superposition):</strong> Same perpendicular direction pair (e.g., both "North and East").</p>
+        <p><strong>Mode 2 (Tensor):</strong> One letter at the intersection of two perpendicular axes — same two perpendicular directions in same order across three letters.</p>
+        <p><strong>Mode 3 (Homology):</strong> Comparing how two different letters transform. Form: "X to D1, Y to D2." Same homology pattern (unordered direction pair) is a match.</p>
+        <p><strong>Mode 4 (Interface):</strong> Two multi-step paths and their endpoint relationship. Form: "X to D1 then D2, Y to D3 then D4, X is D5 of Y." Same step-directions and same connecting direction is a match.</p>
+        <p><strong>Mode 5 (Algebraic Symmetry):</strong> Same "ratio of change" — same transformation type (Inversion vs Rotation) and same axis (Vertical/Horizontal/mixed) on both pairs. No identity (D→D) operators are ever generated; every premise describes a real shift.</p>
+        <p><strong>Mode 6 (Transitive Composition):</strong> Pure chain composition. Form: "D1 to D2 of X, D2 to D3 of Y, so D1 to D3 of X." Clauses 1+2 chain through the shared midpoint direction D2 — X carries the first step, Y bridges. The "so" binder names the composite the user has just constructed by composing the two transformations. Every trial is a real chain; there are no rejection trials and no false premises. Two trials match in n-back iff their chains compose to the same abstract operator class (vertical inversion, horizontal inversion, clockwise rotation, or counter-clockwise rotation) — recursive compression in action. A NO_MATCH response is counter-isomorphism detection: the user has judged that two chains do not share the same composite class.</p>
+        <h3>Tips</h3>
+        <p>The letters (B, C, D, etc.) are doing three jobs at once, not one. First, they're your <strong>anchor points</strong> for the Da Vinci method — where you bind a domain and build the cross-domain operator. Second, they're your <strong>recall handles</strong> — when a letter reappears in a later trial, the letter is the cue that pulls back the relational frame you constructed for it the first time. Third, they're <strong>transformation targets</strong> — when interference patterns deliberately re-present a prior letter in a new structural role (subject becomes object, anchor becomes pivot), you have to hold the old binding alongside the new one and decide whether the structure has been preserved, inverted, rotated, or replaced. The letters are not noise and they are not just placeholders for the directional pattern — they are the axis along which your prior relational construction gets re-evaluated.</p>
+        <p>Use <strong>Adaptive N</strong> to let the game auto-tune difficulty (the Jaeggi protocol).</p>
+        <p><strong>Cognitive Interference</strong> creates logical conflict between consecutive trials at TWO layers: (1) letter-level — letters from the previous trial reappear in conflicting roles (chain, role inversion, intervening-item, mode-specific chains); (2) direction-level — directions are biased toward opposite ("S is North of J" → "J is South of S"), perpendicular ("N → E"), or identical-with-letter-chain (transitive setups). Higher = harder, less drift. The default is 60% — a balanced level that produces meaningful interference without overwhelming new users. Push toward 75–90% for expert training.</p>
+        <p>d' (d-prime) measures discrimination ability from signal detection theory. Higher is better. 1.0 = decent, 2.0 = excellent.</p>
+        <p style="margin-top:14px; color:#666; font-size:0.75rem">Press <strong>ESC</strong> or click outside this panel to close. Click <strong>TUTORIAL</strong> any time to reopen.</p>
+        <div class="modal-actions">
+          <button id="dismiss-tutorial" class="small-btn">CLOSE TUTORIAL</button>
+        </div>
+      </div>
+    </div>
+</main>
+
+<div id="paused-overlay" role="dialog" aria-label="Paused">
+  <h2>PAUSED</h2>
+  <p>Tap or press P to resume</p>
+</div>
+
+<div id="confirm-overlay" role="dialog" aria-label="Confirm">
+  <div class="confirm-box">
+    <h3 id="confirm-title">CONFIRM</h3>
+    <p id="confirm-msg">Are you sure?</p>
+    <div class="btn-row">
+      <button id="confirm-no">CANCEL</button>
+      <button id="confirm-yes">CONFIRM</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+    // ===== Constants =====
+    const SYMBOLS = "BCDEFGHJKLMNOPQRSTUVWXYZ".split("");
+    const REL = { N: 'North', S: 'South', E: 'East', W: 'West' };
+    const DIRS = ['N', 'S', 'E', 'W'];
+    const STORAGE_KEY = 'imagi_log';
+    const RECOVERY_KEY = 'imagi_recovery';
+    const SETTINGS_KEY = 'imagi_settings';
+
+    // ===== Deterministic PRNG =====
+    class Mulberry32 {
+        constructor(seed) { this.state = seed >>> 0; }
+        next() {
+            let t = this.state += 0x6D2B79F5;
+            t = Math.imul(t ^ t >>> 15, t | 1);
+            t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+            return ((t ^ t >>> 14) >>> 0) / 4294967296;
+        }
+        choice(arr) { return arr[Math.floor(this.next() * arr.length)]; }
+        pick(arr, exclude = null) {
+            let v, attempts = 0;
+            do { v = this.choice(arr); attempts++; } while (v === exclude && attempts < 20);
+            return v;
+        }
+        shuffle(arr) {
+            const a = arr.slice();
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = Math.floor(this.next() * (i + 1));
+                [a[i], a[j]] = [a[j], a[i]];
+            }
+            return a;
+        }
+    }
+
+    // ===== Voice picker =====
+    function pickVoice() {
+        const voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+        if (!voices.length) return null;
+        const preferences = [
+            /Google US English/i, /Samantha/i, /Karen/i, /Daniel/i,
+            /Microsoft Aria/i, /Microsoft Guy/i, /^en-US$/i, /^en-GB$/i, /^en/i
+        ];
+        for (const pat of preferences) {
+            const v = voices.find(x => pat.test(x.name) || pat.test(x.lang));
+            if (v) return v;
+        }
+        return voices[0];
+    }
+
+    // ===== Acklam inverse-normal CDF =====
+    function normInv(p) {
+        const a = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02,
+                   1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
+        const b = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02,
+                   6.680131188771972e+01, -1.328068155288572e+01];
+        const c = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00,
+                   -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
+        const d = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00,
+                   3.754408661907416e+00];
+        const pl = 0.02425, ph = 1 - pl;
+        let q, r;
+        if (p < pl) {
+            q = Math.sqrt(-2 * Math.log(p));
+            return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) /
+                   ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+        }
+        if (p <= ph) {
+            q = p - 0.5; r = q*q;
+            return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q /
+                   (((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);
+        }
+        q = Math.sqrt(-2 * Math.log(1 - p));
+        return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) /
+                ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+    }
+
+    // ===== Promise-based confirmation dialog (replaces blocking confirm()) =====
+    function showConfirm(title, msg) {
+        return new Promise(resolve => {
+            const overlay = document.getElementById('confirm-overlay');
+            document.getElementById('confirm-title').textContent = title;
+            document.getElementById('confirm-msg').textContent = msg;
+            overlay.classList.add('show');
+            const yes = document.getElementById('confirm-yes');
+            const no = document.getElementById('confirm-no');
+            const cleanup = (ans) => {
+                overlay.classList.remove('show');
+                yes.onclick = null; no.onclick = null;
+                document.removeEventListener('keydown', keyHandler, true);
+                resolve(ans);
+            };
+            const keyHandler = (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); cleanup(true); }
+                else if (e.key === 'Escape') { e.preventDefault(); cleanup(false); }
+            };
+            yes.onclick = () => cleanup(true);
+            no.onclick = () => cleanup(false);
+            document.addEventListener('keydown', keyHandler, true);
+        });
+    }
+
+    // ===== Engine =====
+    class NeuralEngine {
+        constructor() {
+            this.history = [];
+            this.running = false;
+            this.paused = false;
+            this.starting = false;     // re-entrancy guard for start()
+            this.rng = new Mulberry32((Date.now() ^ Math.floor(performance.now() * 1000)) >>> 0);
+            this.synth = window.speechSynthesis || null;
+            this.audioCtx = null;
+            this.voice = null;
+            this.wakeLock = null;
+            this.epoch = 0;
+            this.timer = null;
+            this.feedbackTimer = null;
+            this.sessionUpdateTimer = null;
+            this.pauseResolvers = [];
+            this.answered = true;
+            this.currentIsScored = false;
+            this.currentCorrectIsMatch = false;
+            this.rtSamples = [];
+            this.score = 0; this.hits = 0; this.misses = 0;
+            this.falseAlarms = 0; this.correctRejects = 0;
+            this.totalScored = 0; this.totalShown = 0; this.timeouts = 0;
+            this.recentWindow = [];
+            this.currentN = 1;
+            this.modeStats = {}; // { '0': {h, m, fa, cr, scored}, ... }
+            // Pause/timer state
+            this.thinkDeadline = 0;   // absolute timestamp when current think window expires
+            this.thinkRemaining = 0;  // ms remaining at pause-time
+            this.thinkStart = 0;
+            this.thinkTotal = 0;
+            this.responsePhase = false;
+        }
+
+        resetCounters() {
+            this.score = 0;
+            this.hits = 0; this.misses = 0;
+            this.falseAlarms = 0; this.correctRejects = 0;
+            this.totalScored = 0; this.totalShown = 0; this.timeouts = 0;
+            this.recentWindow = [];
+            this.rtSamples = [];
+            this.modeStats = {};
+            this.patternCounts = {};
+            this.dirConflictTotal = 0;
+            this.dirConflictTrials = 0;
+            this.dirConflictMax = 0;
+            this.currentN = parseInt(document.getElementById('n-slider').value) || 1;
+        }
+
+        $ (id) { return document.getElementById(id); }
+
+        init() {
+            const $ = id => document.getElementById(id);
+
+            // Restore settings from previous visit
+            this.loadSettings();
+
+            // Crash recovery check
+            this.checkRecovery();
+
+            $('start-btn').onclick = () => {
+                // CRITICAL: prime audio + speech SYNCHRONOUSLY on the user gesture.
+                // Mobile browsers (iOS Safari, Chrome Android) require AudioContext
+                // creation/resume AND the first speech utterance to happen in the
+                // synchronous part of a user-gesture event handler. Any `await`
+                // before the first speak() can break the gesture chain.
+                this.primeAudioFromUserGesture();
+                this.start();
+            };
+            $('pause-btn').onclick = () => this.togglePause();
+            $('stop-btn').onclick = () => this.stopRequested();
+            $('dismiss-summary').onclick = () => {
+                this.closeModal('summary');
+                if (!this.running) {
+                    $('premise-display').textContent = "SYSTEM_READY";
+                    this.fitPremiseText();
+                }
+            };
+            $('history-btn').onclick = () => this.showHistory();
+            $('clear-btn').onclick = async () => {
+                if (await showConfirm("CLEAR HISTORY", "Permanently delete all saved session history?")) {
+                    try { localStorage.removeItem(STORAGE_KEY); } catch(_) {}
+                    this.showHistory();
+                }
+            };
+            $('tutorial-btn').onclick = () => this.openModal('tutorial');
+            $('dismiss-tutorial').onclick = () => this.closeModal('tutorial');
+            $('export-btn').onclick = () => this.exportCSV();
+            $('recovery-view').onclick = () => {
+                $('recovery-banner').classList.remove('show');
+                this.showHistory();
+            };
+            $('recovery-dismiss').onclick = () => {
+                $('recovery-banner').classList.remove('show');
+                try { localStorage.removeItem(RECOVERY_KEY); } catch(_) {}
+            };
+
+            // ===== Modal close affordances =====
+            // 1. Close-× buttons (top-right of every modal)
+            document.querySelectorAll('.modal-close').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = btn.getAttribute('data-close');
+                    if (id) this.closeModal(id);
+                });
+            });
+            // 2. Click backdrop (outside .modal-inner) closes the modal
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) this.closeModal(modal.id);
+                });
+            });
+            // 3. ESC key closes any open modal
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' || e.key === 'Esc') {
+                    const open = document.querySelector('.modal.show');
+                    if (open) {
+                        e.preventDefault();
+                        this.closeModal(open.id);
+                    }
+                }
+            });
+
+            // Sliders + persistence
+            const persistSlider = (id, lblFn) => {
+                $(id).oninput = e => {
+                    if (lblFn) lblFn(e);
+                    this.saveSettings();
+                };
+            };
+            persistSlider('n-slider', e => $('n-val').textContent = e.target.value);
+            const formatSpt = (secs) => {
+                const s = parseFloat(secs);
+                if (s < 60) return s.toFixed(1) + 's';
+                const m = Math.floor(s / 60);
+                const r = Math.round(s % 60);
+                return r === 0 ? `${m}:00` : `${m}:${r.toString().padStart(2,'0')}`;
+            };
+            persistSlider('spt-slider', e => $('spt-val').textContent = formatSpt(e.target.value));
+            persistSlider('session-slider', e => {
+                const mins = parseInt(e.target.value);
+                const hrs = Math.floor(mins/60);
+                const m = mins % 60;
+                $('session-val').textContent = hrs > 0 ? `${hrs}H ${m}M` : `${mins} MIN`;
+            });
+            persistSlider('prob-slider', e => $('prob-val').textContent = e.target.value + "%");
+            persistSlider('rate-slider', e => $('rate-val').textContent = parseFloat(e.target.value).toFixed(2) + 'x');
+            persistSlider('interference-slider', e => $('interference-val').textContent = e.target.value + '%');
+
+            $('keyboard').onchange = e => { $('kbd-hint').style.display = e.target.checked ? 'block' : 'none'; this.saveSettings(); };
+            $('audio-only').onchange = e => { $('hide-text').disabled = e.target.checked; this.saveSettings(); };
+            ['hide-text','haptic','adaptive','mute-click','confirm-stop','practice-mode'].forEach(id => {
+                $(id).onchange = () => this.saveSettings();
+            });
+            $('logic-mode').onchange = () => this.saveSettings();
+
+            // Use pointerdown for low-latency response on touch; fall back to click
+            const wireBtn = (id, fn) => {
+                const el = $(id);
+                let handled = false;
+                el.addEventListener('pointerdown', (e) => {
+                    if (e.pointerType === 'mouse' && e.button !== 0) return;
+                    handled = true;
+                    fn();
+                    setTimeout(() => { handled = false; }, 350);
+                });
+                el.addEventListener('click', () => {
+                    if (handled) return;
+                    fn();
+                });
+            };
+            wireBtn('match-btn', () => this.respond(true));
+            wireBtn('no-match-btn', () => this.respond(false));
+
+            // Keyboard
+            document.addEventListener('keydown', (e) => {
+                if (!$('keyboard').checked) return;
+                if (e.repeat) return;
+                if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA')) return;
+                // Don't interfere with confirm dialog
+                if ($('confirm-overlay').classList.contains('show')) return;
+                const k = e.key.toLowerCase();
+                if (k === 'j' || k === 'f') { this.flashBtn('match-btn'); this.respond(true); }
+                else if (k === 'k' || k === 'd') { this.flashBtn('no-match-btn'); this.respond(false); }
+                else if (k === 'p') { e.preventDefault(); if (this.running) this.togglePause(); }
+                else if (k === 'escape') { e.preventDefault(); if (this.running) this.stopRequested(); }
+                else if (k === ' ') { e.preventDefault(); if (!this.running && !this.starting) this.start(); }
+            });
+
+            $('paused-overlay').onclick = () => { if (this.paused) this.togglePause(); };
+
+            if (this.synth) {
+                this.synth.onvoiceschanged = () => { this.voice = pickVoice(); };
+                this.voice = pickVoice();
+            }
+
+            // Visibility — re-acquire wake lock, kick speech if needed
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden && this.running && !this.wakeLock) this.requestWakeLock();
+                // When tab is hidden, throttling occurs — recompute thinking window on return
+                if (!document.hidden && this.running && this.responsePhase && !this.paused) {
+                    // Reconcile timer with absolute deadline
+                    const remaining = this.thinkDeadline - Date.now();
+                    if (remaining <= 0 && !this.answered) {
+                        this.respond(null);
+                    } else if (remaining > 0) {
+                        clearTimeout(this.timer);
+                        this.timer = setTimeout(() => {
+                            if (!this.answered && this.running && !this.paused) this.respond(null);
+                        }, remaining);
+                        // Resync visual bar
+                        this.syncTimerBar();
+                    }
+                }
+                if (document.hidden && this.running) {
+                    try { this.synth && this.synth.cancel(); } catch(_) {}
+                }
+            });
+
+            window.addEventListener('beforeunload', (e) => {
+                if (this.running) {
+                    // Save recovery snapshot
+                    this.saveRecoverySnapshot();
+                    e.preventDefault();
+                    e.returnValue = '';
+                }
+            });
+
+            // Re-fit premise text when viewport changes (rotation, resize)
+            let resizeTimer = null;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(() => this.fitPremiseText(), 80);
+            });
+            // Fit on initial load too
+            setTimeout(() => this.fitPremiseText(), 50);
+
+            // Mobile speech-engine keep-alive: iOS and Android sometimes let
+            // the speech engine go dormant between utterances. We ping resume()
+            // every 5 seconds while a session is running to prevent that.
+            setInterval(() => {
+                if (this.running && this.synth && !this.paused) {
+                    try { this.synth.resume(); } catch (_) {}
+                }
+            }, 5000);
+
+            // Bluetooth/audio device change recovery
+            if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+                try {
+                    navigator.mediaDevices.addEventListener('devicechange', () => {
+                        // Resume audio context if suspended (Bluetooth disconnect/reconnect)
+                        if (this.audioCtx && this.audioCtx.state === 'suspended') {
+                            this.audioCtx.resume().catch(()=>{});
+                        }
+                    });
+                } catch(_) {}
+            }
+
+            this.updateUI();
+        }
+
+        // ===== Settings persistence =====
+        saveSettings() {
+            try {
+                const s = {
+                    n: this.$('n-slider').value,
+                    mode: this.$('logic-mode').value,
+                    spt: this.$('spt-slider').value,
+                    session: this.$('session-slider').value,
+                    prob: this.$('prob-slider').value,
+                    rate: this.$('rate-slider').value,
+                    interference: this.$('interference-slider').value,
+                    hideText: this.$('hide-text').checked,
+                    audioOnly: this.$('audio-only').checked,
+                    keyboard: this.$('keyboard').checked,
+                    haptic: this.$('haptic').checked,
+                    adaptive: this.$('adaptive').checked,
+                    muteClick: this.$('mute-click').checked,
+                    confirmStop: this.$('confirm-stop').checked,
+                    practiceMode: this.$('practice-mode').checked
+                };
+                localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+            } catch(_) {}
+        }
+
+        loadSettings() {
+            try {
+                const raw = localStorage.getItem(SETTINGS_KEY);
+                if (!raw) return;
+                const s = JSON.parse(raw);
+                const $ = id => document.getElementById(id);
+                if (s.n) { $('n-slider').value = s.n; $('n-val').textContent = s.n; }
+                if (s.mode) $('logic-mode').value = s.mode;
+                if (s.spt) {
+                    $('spt-slider').value = s.spt;
+                    const sec = parseFloat(s.spt);
+                    if (sec < 60) $('spt-val').textContent = sec.toFixed(1) + 's';
+                    else {
+                        const m = Math.floor(sec / 60), r = Math.round(sec % 60);
+                        $('spt-val').textContent = r === 0 ? `${m}:00` : `${m}:${r.toString().padStart(2,'0')}`;
+                    }
+                }
+                if (s.session) {
+                    $('session-slider').value = s.session;
+                    const mins = parseInt(s.session), hrs = Math.floor(mins/60), m = mins%60;
+                    $('session-val').textContent = hrs > 0 ? `${hrs}H ${m}M` : `${mins} MIN`;
+                }
+                if (s.prob) { $('prob-slider').value = s.prob; $('prob-val').textContent = s.prob + "%"; }
+                if (s.rate) { $('rate-slider').value = s.rate; $('rate-val').textContent = parseFloat(s.rate).toFixed(2) + 'x'; }
+                if (s.interference !== undefined) { $('interference-slider').value = s.interference; $('interference-val').textContent = s.interference + '%'; }
+                ['hideText:hide-text','audioOnly:audio-only','keyboard','haptic','adaptive','muteClick:mute-click','confirmStop:confirm-stop','practiceMode:practice-mode']
+                  .forEach(pair => {
+                    const [key, id] = pair.includes(':') ? pair.split(':') : [pair, pair];
+                    if (s[key] !== undefined) $(id).checked = s[key];
+                  });
+                if (s.audioOnly) $('hide-text').disabled = true;
+                if (s.keyboard) $('kbd-hint').style.display = 'block';
+            } catch(_) {}
+        }
+
+        // ===== Crash recovery =====
+        saveRecoverySnapshot() {
+            try {
+                const snap = {
+                    at: new Date().toISOString(),
+                    mode: this.$('logic-mode').value,
+                    nStart: parseInt(this.$('n-slider').value),
+                    nEnd: this.currentN,
+                    shown: this.totalShown, scored: this.totalScored,
+                    score: this.score, hits: this.hits, misses: this.misses,
+                    fa: this.falseAlarms, cr: this.correctRejects,
+                    timeouts: this.timeouts,
+                    minutes: +((Date.now() - this.startTime - this.totalPausedMs - (this.paused ? Date.now() - this.lastPauseStart : 0)) / 60000).toFixed(2)
+                };
+                localStorage.setItem(RECOVERY_KEY, JSON.stringify(snap));
+            } catch(_) {}
+        }
+
+        clearRecoverySnapshot() {
+            try { localStorage.removeItem(RECOVERY_KEY); } catch(_) {}
+        }
+
+        checkRecovery() {
+            try {
+                const raw = localStorage.getItem(RECOVERY_KEY);
+                if (!raw) return;
+                const snap = JSON.parse(raw);
+                if (snap && snap.shown > 0) {
+                    // Commit recovery snapshot to history log
+                    const log = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                    const matchTotal = snap.hits + snap.misses;
+                    const nonMatchTotal = snap.fa + snap.cr;
+                    const hitRate = matchTotal > 0 ? (snap.hits / matchTotal) : 0;
+                    const crRate = nonMatchTotal > 0 ? (snap.cr / nonMatchTotal) : 0;
+                    const balAcc = (matchTotal && nonMatchTotal) ? Math.round((hitRate + crRate) * 50) : (snap.scored ? Math.round(snap.score / snap.scored * 100) : 0);
+                    const acc = snap.scored ? Math.round(snap.score / snap.scored * 100) : 0;
+                    log.push({
+                        at: snap.at,
+                        mode: snap.mode, nStart: snap.nStart, nEnd: snap.nEnd,
+                        minutes: snap.minutes,
+                        shown: snap.shown, scored: snap.scored,
+                        score: snap.score, accuracy: acc, balAcc,
+                        dprime: 0, // not computed for recovery
+                        hits: snap.hits, misses: snap.misses,
+                        fa: snap.fa, cr: snap.cr,
+                        timeouts: snap.timeouts, meanRt: null,
+                        recovered: true
+                    });
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(log.slice(-200)));
+                    document.getElementById('recovery-text').textContent =
+                        `Previous session recovered: ${snap.shown} trials, ${balAcc}% bal acc. Saved to history.`;
+                    document.getElementById('recovery-banner').classList.add('show');
+                }
+                localStorage.removeItem(RECOVERY_KEY);
+            } catch(_) {}
+        }
+
+        flashBtn(id) {
+            const b = document.getElementById(id);
+            if (!b || b.disabled) return;
+            b.classList.add('flash');
+            setTimeout(() => b.classList.remove('flash'), 150);
+        }
+
+        sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+        waitWhilePaused() {
+            if (!this.paused) return Promise.resolve();
+            return new Promise(res => this.pauseResolvers.push(res));
+        }
+
+        haptic(pattern) {
+            const cb = document.getElementById('haptic');
+            if (!cb || !cb.checked) return;
+            if (navigator.vibrate) try { navigator.vibrate(pattern); } catch(_) {}
+        }
+
+        // ===== Speech (epoch + pause aware) =====
+        // ===== Mobile audio priming =====
+        // Called synchronously from the start button click. Mobile browsers
+        // require BOTH AudioContext creation and the first speech utterance to
+        // happen in the synchronous handler of a user gesture. After even one
+        // `await`, iOS Safari treats the gesture as expired and silently
+        // refuses to play audio.
+        primeAudioFromUserGesture() {
+            // 1. Create / resume AudioContext synchronously
+            try {
+                if (!this.audioCtx) {
+                    const Ctx = window.AudioContext || window.webkitAudioContext;
+                    if (Ctx) this.audioCtx = new Ctx();
+                }
+                if (this.audioCtx && this.audioCtx.state === 'suspended') {
+                    // Don't await — fire and forget, it resumes async
+                    this.audioCtx.resume().catch(() => {});
+                }
+                // Play a silent oscillator burst so iOS unlocks audio output.
+                // Without this, the audioCtx may remain "interrupted" until
+                // another tap happens.
+                if (this.audioCtx) {
+                    const osc = this.audioCtx.createOscillator();
+                    const g = this.audioCtx.createGain();
+                    g.gain.value = 0;
+                    osc.connect(g);
+                    g.connect(this.audioCtx.destination);
+                    osc.start();
+                    osc.stop(this.audioCtx.currentTime + 0.01);
+                }
+            } catch (_) {}
+
+            // 2. Prime speechSynthesis synchronously by speaking an empty utterance.
+            // This counts as a "user-initiated speak" on iOS, unlocking subsequent
+            // calls. Volume=0 makes it inaudible. CRITICAL: must NOT be awaited.
+            try {
+                if (this.synth) {
+                    this.synth.cancel();
+                    this.synth.resume();
+                    const primer = new SpeechSynthesisUtterance(' ');
+                    primer.volume = 0;
+                    primer.rate = 1;
+                    // No await — fires synchronously, queues internally
+                    this.synth.speak(primer);
+                    this.audioUnlocked = true;
+                }
+            } catch (_) {}
+        }
+
+        // Detect if we're on a mobile device — used to choose mobile-friendlier
+        // pacing in the countdown.
+        isMobileDevice() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
+        speak(text, rate = null) {
+            return new Promise(resolve => {
+                if (!this.synth || !text) { resolve(); return; }
+                if (rate === null) rate = parseFloat(document.getElementById('rate-slider').value);
+
+                // Mobile: synth can be in "paused" state from a previous interruption.
+                // Resume and cancel any stuck utterance before queuing a new one.
+                try {
+                    if (this.synth.paused) this.synth.resume();
+                    this.synth.resume();
+                    // If something has been speaking for too long, it's stuck — kill it.
+                    if (this.synth.speaking && !this._speakInProgress) {
+                        this.synth.cancel();
+                    }
+                } catch(_) {}
+
+                const utter = new SpeechSynthesisUtterance(text);
+                if (this.voice) utter.voice = this.voice;
+                utter.rate = Math.max(0.1, Math.min(2.0, rate));
+                utter.pitch = 1.0; utter.volume = 1.0;
+                utter.lang = (this.voice && this.voice.lang) || 'en-US';
+
+                const myEpoch = this.epoch;
+                let done = false;
+                this._speakInProgress = true;
+                const finish = () => {
+                    if (done) return;
+                    done = true;
+                    this._speakInProgress = false;
+                    clearTimeout(safety);
+                    clearInterval(poll);
+                    resolve();
+                };
+                utter.onend = finish;
+                utter.onerror = finish;
+
+                const words = text.split(/\s+/).filter(Boolean).length;
+                const estMs = (words / Math.max(0.4, rate)) * 700 + 1500;
+                const safety = setTimeout(() => {
+                    try { this.synth.cancel(); } catch(_) {}
+                    finish();
+                }, Math.min(30000, estMs * 2.5));
+
+                // Poll handles: epoch change, stop, OR pause (resolve to allow pulse to handle)
+                const poll = setInterval(() => {
+                    if (myEpoch !== this.epoch || !this.running || this.paused) {
+                        try { this.synth.cancel(); } catch(_) {}
+                        finish();
+                    }
+                }, 100);
+
+                try { this.synth.speak(utter); }
+                catch(_) { finish(); }
+            });
+        }
+
+        async runInitialCountdown() {
+            const box = document.getElementById('countdown-box');
+            const myEpoch = this.epoch;
+            const isMobile = this.isMobileDevice();
+            box.textContent = "READY";
+            await this.sleep(700);
+            if (myEpoch !== this.epoch) return;
+
+            // CRITICAL MOBILE FIX:
+            // On mobile, the first speech utterance after a long quiet period
+            // can take 1-3 seconds to actually begin, because the OS speech
+            // engine has to warm up. If we await speech for each countdown
+            // number, the countdown becomes glacial.
+            //
+            // Solution: visual countdown runs at fixed 850ms beats. On desktop
+            // we ALSO speak each number (they play crisply). On mobile we skip
+            // the audio entirely — the visual countdown is sufficient — so
+            // the OS can use its speech warm-up cycle for the FIRST premise
+            // instead. Premises will then start crisp and on-time.
+            const beatMs = 850;
+            for (let i = 3; i > 0; i--) {
+                if (myEpoch !== this.epoch || !this.running) return;
+                box.textContent = i;
+                if (!isMobile) {
+                    // Fire-and-forget — the timer drives the beat, not the speech.
+                    this.speak(i.toString(), 1.1).catch(() => {});
+                }
+                await this.sleep(beatMs);
+            }
+            // Cancel any speech that hasn't fired yet (so it doesn't bleed
+            // into the first premise).
+            try { this.synth && this.synth.cancel(); } catch(_) {}
+            box.textContent = "";
+        }
+
+        // ===== Key generation =====
+        newKey(mode) {
+            const rng = this.rng;
+            const m = parseInt(mode);
+            if (m === 1) {
+                const ns = rng.choice(['N','S']);
+                const ew = rng.choice(['E','W']);
+                return `M1-${[ns, ew].sort().join('')}`;
+            }
+            if (m === 2) {
+                // Mode 2 (Tensor): "One letter acts as the intersection point
+                // between two different letters on PERPENDICULAR axes."
+                // The two directions must be perpendicular (one vertical, one
+                // horizontal) — never opposite or identical.
+                const vert = ['N', 'S'];
+                const horiz = ['E', 'W'];
+                // 50/50: pick (vertical, horizontal) or (horizontal, vertical)
+                let d1, d2;
+                if (rng.next() < 0.5) {
+                    d1 = rng.choice(vert);
+                    d2 = rng.choice(horiz);
+                } else {
+                    d1 = rng.choice(horiz);
+                    d2 = rng.choice(vert);
+                }
+                return `M2-${d1}-${d2}`;
+            }
+            if (m === 3) {
+                // M3 (Homology): "X to D1, Y to D2" — comparing how two letters
+                // transform. Both d1 and d2 are independent (d1 may equal d2 — that
+                // represents the "same change" case which is semantically meaningful
+                // per the V12.0 spec).
+                const d1 = rng.choice(DIRS);
+                const d2 = rng.choice(DIRS);
+                return `M3-${d1}-${d2}`;
+            }
+            if (m === 4) {
+                // M4 paths: each is (vertical step, horizontal step). For genuine
+                // multi-step relational reasoning, the two paths must produce
+                // DIFFERENT endpoint vectors. If both paths sum to the same vector
+                // (i.e., D1==D3 AND D2==D4), the premise collapses to "X is D5 of Y"
+                // — pure Mode 0 — and the user can shortcut past the path math.
+                const a = rng.choice(['N','S']), b = rng.choice(['E','W']);
+                let d = rng.choice(['N','S']), e = rng.choice(['E','W']);
+                // Reject path-identity by re-rolling at least one step. We force
+                // at least one component to differ between the two paths.
+                if (d === a && e === b) {
+                    // 50/50 flip the vertical or horizontal component
+                    if (rng.next() < 0.5) d = (a === 'N') ? 'S' : 'N';
+                    else e = (b === 'E') ? 'W' : 'E';
+                }
+                const c = rng.choice(DIRS);
+                return `M4-${a}${b}-${d}${e}-${c}`;
+            }
+            if (m === 5) {
+                // M5 — Algebraic Relational Symmetry
+                // Each direction pair (d1, d2) where d1 ≠ d2 is classified by abstract
+                // transformation:
+                //   X (inversion):   d1, d2 are opposites — vertical (XV: N↔S) or horizontal (XH: E↔W)
+                //   C (CW rotation): d1→d2 is clockwise 90° (N→E, E→S, S→W, W→N) — always mixed axis
+                //   A (CCW rotation):d1→d2 is counter-CW 90° (N→W, W→S, S→E, E→N) — always mixed axis
+                //
+                // 4 atoms × unordered pairs = C(4+1, 2) = 10 distinct match signatures.
+                // We sample atoms uniformly so distribution is flat (~10% per signature),
+                // avoiding the original concentration problem.
+                //
+                // NOTE: Identity transformations (d1 = d2) are excluded because they
+                // render as gibberish English ("West to West of X"). Every premise
+                // describes a real change of direction.
+                const ATOMS = ['XV', 'XH', 'C', 'A'];
+                const sampleAtom = () => rng.choice(ATOMS);
+                const realizeAtom = (atom) => {
+                    if (atom === 'XV') {
+                        const d = rng.choice(['N', 'S']);
+                        return [d, d === 'N' ? 'S' : 'N'];
+                    }
+                    if (atom === 'XH') {
+                        const d = rng.choice(['E', 'W']);
+                        return [d, d === 'E' ? 'W' : 'E'];
+                    }
+                    if (atom === 'C') {
+                        const cw = { N: 'E', E: 'S', S: 'W', W: 'N' };
+                        const d = rng.choice(DIRS);
+                        return [d, cw[d]];
+                    }
+                    // A: CCW
+                    const ccw = { N: 'W', W: 'S', S: 'E', E: 'N' };
+                    const d = rng.choice(DIRS);
+                    return [d, ccw[d]];
+                };
+                const atomToAxis = (atom) => {
+                    if (atom === 'XV') return 'V';
+                    if (atom === 'XH') return 'H';
+                    return 'X';
+                };
+                const atomToType = (atom) => atom[0]; // X, C, or A
+
+                const atomA = sampleAtom();
+                const atomB = sampleAtom();
+                const [d1, d2] = realizeAtom(atomA);
+                const [d3, d4] = realizeAtom(atomB);
+                const t1 = atomToType(atomA), t2 = atomToType(atomB);
+                const ax1 = atomToAxis(atomA), ax2 = atomToAxis(atomB);
+                return `M5-${d1}${d2}-${d3}${d4}-${t1}${t2}-${ax1}${ax2}`;
+            }
+            if (m === 6) {
+                // M6 (Transitive Composition): pure chain composition through a
+                // shared midpoint direction. Every trial is a real chain — no
+                // rejection trials, no validity flag, no false premises.
+                // Surface: "D1 to D2 of X, D2 to D3 of Y, so D1 to D3 of X"
+                //   - X carries the first step (D1→D2)
+                //   - Y carries the bridge step (D2→D3) — D2 is the shared midpoint
+                //   - The "so" binder names the composite (D1→D3) on X
+                // Constraints: D1≠D2 (first step is real), D2≠D3 (second step is
+                // real), D1≠D3 (composite is non-identity).
+                // The n-back match itself handles counter-isomorphism (NO_MATCH)
+                // and recursive compression (MATCH); no within-trial mechanism.
+                const d1 = rng.choice(DIRS);
+                const d2 = rng.pick(DIRS, d1);
+                let d3;
+                let attempts = 0;
+                do {
+                    d3 = rng.choice(DIRS);
+                    attempts++;
+                } while ((d3 === d2 || d3 === d1) && attempts < 30);
+                return `M6-${d1}-${d2}-${d3}`;
+            }
+            return `M0-${rng.choice(DIRS)}`;
+        }
+
+        // Classify a direction pair (d1, d2) where d1 ≠ d2 as abstract transformation:
+        //   'X' = inversion (opposites)
+        //   'C' = clockwise 90° (N→E, E→S, S→W, W→N)
+        //   'A' = counter-clockwise 90° (N→W, W→S, S→E, E→N)
+        // Note: d1 == d2 (identity) is excluded from M5 because it renders as
+        // gibberish English ("West to West of X").
+        getTransformationRule(d1, d2) {
+            const opposites = { N: 'S', S: 'N', E: 'W', W: 'E' };
+            if (opposites[d1] === d2) return 'X';
+            const cw = { N: 'E', E: 'S', S: 'W', W: 'N' };
+            if (cw[d1] === d2) return 'C';
+            return 'A';
+        }
+
+        matchSignature(key, mode) {
+            const m = parseInt(mode);
+            if (m === 3) {
+                // M3 (Homology form): "X to D1, Y to D2"
+                // Two M3 trials are structurally equivalent (n-back match) if their
+                // unordered direction multisets are the same. {N,E} matches {E,N}
+                // because both describe the same homology pattern (one north
+                // transformation paired with one east transformation, applied to
+                // two letters). The letter-direction binding is what changes
+                // between trials; the structural homology is the unordered pair.
+                const p = key.split('-');
+                const dirs = [p[1], p[2]].sort();
+                return `M3SIG-${dirs[0]}-${dirs[1]}`;
+            }
+            if (m === 5) {
+                const p = key.split('-');
+                // M5 signature is the UNORDERED MULTISET of (transformation, axis) atoms.
+                // This matches the user's perception: when the rendered premise is
+                // order-randomized ("A as B" vs "B as A"), the underlying match
+                // criterion must also be order-independent so the user can score reliably.
+                // p[3] = t1t2 (e.g., "CA"), p[4] = axis1axis2 (e.g., "XX")
+                const t1 = p[3][0], t2 = p[3][1];
+                const a1 = p[4][0], a2 = p[4][1];
+                const atom1 = t1 + a1;  // e.g., "CX"
+                const atom2 = t2 + a2;  // e.g., "AX"
+                // Sort atoms alphabetically so {CX, AX} and {AX, CX} produce same signature
+                const atoms = [atom1, atom2].sort();
+                return `M5SIG-${atoms[0]}-${atoms[1]}`;
+            }
+            if (m === 6) {
+                // M6 (Transitive Composition) signature: the abstract operator
+                // class produced by composing the chain (D1→D3 via D2 bridge).
+                // Every trial is a real chain, so every signature is a real
+                // composite. Classify (D1, D3) into one of four atom classes:
+                //   XV = vertical inversion (N↔S)
+                //   XH = horizontal inversion (E↔W)
+                //   CW = clockwise rotation 90° (N→E, E→S, S→W, W→N)
+                //   CCW = counter-clockwise rotation 90° (N→W, W→S, S→E, E→N)
+                // Two M6 trials match in n-back iff their chains compose to the
+                // same atom class — recursive compression in action.
+                // A NO_MATCH response is counter-isomorphism: the user has
+                // judged that two chains do not share the same composite class.
+                const p = key.split('-');
+                const d1 = p[1], d3 = p[3];
+                // Classify (d1, d3) — note d1 ≠ d3 enforced by generator
+                const opp = { N: 'S', S: 'N', E: 'W', W: 'E' };
+                const cw = { N: 'E', E: 'S', S: 'W', W: 'N' };
+                let atom;
+                if (opp[d1] === d3) {
+                    atom = (d1 === 'N' || d1 === 'S') ? 'XV' : 'XH';
+                } else if (cw[d1] === d3) {
+                    atom = 'CW';
+                } else {
+                    atom = 'CCW';
+                }
+                return `M6SIG-${atom}`;
+            }
+            return key;
+        }
+
+        // ===== Directional / Relational Conflict Scoring =====
+        // Quantifies the LOGICAL tension between two trials at the direction level.
+        // Higher score = more cognitive engagement required to disambiguate.
+        //
+        // Conflict types scored:
+        //   IDENTICAL_DIR    → same direction (creates transitive implication when chained)
+        //   OPPOSITE_DIR     → opposite direction (forces directional flip reasoning)
+        //   PERPENDICULAR    → 90° rotation (forces axis-switch reasoning)
+        //
+        // For multi-direction keys (M1, M2, M3, M4, M5), each direction slot is
+        // scored independently and summed.
+        directionalConflictScore(candidateKey, prevKey, mode) {
+            if (!prevKey) return 0;
+            const m = parseInt(mode);
+            const opposites = { N: 'S', S: 'N', E: 'W', W: 'E' };
+            const isPerp = (d1, d2) => {
+                const vert = d => d === 'N' || d === 'S';
+                return vert(d1) !== vert(d2);
+            };
+            // Returns a per-direction-pair score: 3=opposite, 2=identical, 1=perpendicular, 0=other
+            // Opposite & identical both create strong logical tension (just different kinds).
+            // Perpendicular forces axis rotation. We weight opposite slightly higher because
+            // direction-flip is the most cognitively conflicting case per your example
+            // ("T is south of S" inverts "S is north of J").
+            const pairScore = (d1, d2) => {
+                if (!d1 || !d2) return 0;
+                if (opposites[d1] === d2) return 3;
+                if (d1 === d2) return 2;
+                if (isPerp(d1, d2)) return 1;
+                return 0;
+            };
+
+            const pCand = candidateKey.split('-');
+            const pPrev = prevKey.split('-');
+            if (pCand[0] !== pPrev[0]) return 0; // different mode — no comparable direction
+
+            let score = 0;
+            if (m === 0) {
+                score += pairScore(pCand[1], pPrev[1]);
+            } else if (m === 1) {
+                // M1 key: "M1-NE" — compare both characters
+                const cd = pCand[1].split(''), pd = pPrev[1].split('');
+                // Best pairing — try both orderings since the pair is unordered
+                const opt1 = pairScore(cd[0], pd[0]) + pairScore(cd[1], pd[1]);
+                const opt2 = pairScore(cd[0], pd[1]) + pairScore(cd[1], pd[0]);
+                score += Math.max(opt1, opt2);
+            } else if (m === 2) {
+                // M2 key: "M2-d1-d2"
+                score += pairScore(pCand[1], pPrev[1]);
+                score += pairScore(pCand[2], pPrev[2]);
+            } else if (m === 3) {
+                // M3 key: "M3-D1-D2" representing "X to D1, Y to D2"
+                // The (D1, D2) pair is unordered semantically (X-letter and Y-letter
+                // are interchangeable), so score the best of both pairings.
+                const opt1 = pairScore(pCand[1], pPrev[1]) + pairScore(pCand[2], pPrev[2]);
+                const opt2 = pairScore(pCand[1], pPrev[2]) + pairScore(pCand[2], pPrev[1]);
+                score += Math.max(opt1, opt2);
+            } else if (m === 4) {
+                // M4 key: "M4-AB-DE-C" (two path-step pairs + connecting direction)
+                const cA = pCand[1].split(''), pA = pPrev[1].split('');
+                const cD = pCand[2].split(''), pD = pPrev[2].split('');
+                score += Math.max(pairScore(cA[0], pA[0]) + pairScore(cA[1], pA[1]),
+                                  pairScore(cA[0], pA[1]) + pairScore(cA[1], pA[0]));
+                score += Math.max(pairScore(cD[0], pD[0]) + pairScore(cD[1], pD[1]),
+                                  pairScore(cD[0], pD[1]) + pairScore(cD[1], pD[0]));
+                score += pairScore(pCand[3], pPrev[3]);
+            } else if (m === 5) {
+                // M5 key: "M5-d1d2-d3d4-..."
+                const cA = pCand[1].split(''), pA = pPrev[1].split('');
+                const cB = pCand[2].split(''), pB = pPrev[2].split('');
+                score += pairScore(cA[0], pA[0]) + pairScore(cA[1], pA[1]);
+                score += pairScore(cB[0], pB[0]) + pairScore(cB[1], pB[1]);
+            } else if (m === 6) {
+                // M6 key: "M6-D1-D2-D3" — 3 directional slots, pair by position.
+                score += pairScore(pCand[1], pPrev[1]);
+                score += pairScore(pCand[2], pPrev[2]);
+                score += pairScore(pCand[3], pPrev[3]);
+            }
+            return score;
+        }
+
+        // Compute the theoretical maximum directional conflict score per mode.
+        // Used for calibration so the slider's % maps to a consistent fraction
+        // of each mode's available conflict ceiling.
+        modeMaxConflict(mode) {
+            const m = parseInt(mode);
+            // pairScore max is 3 (opposite direction). Sum over direction slots.
+            //   M0: 1 dir → 3
+            //   M1: 2 dirs → 6
+            //   M2: 2 dirs → 6
+            //   M3: 2 dirs → 6
+            //   M4: 2 corner-pairs (each up to 2 dirs scored max 3 = 6) + 1 connector = 6+6+3=15
+            //   M5: 2 pair*2 dirs = 4 dirs → 12
+            if (m === 0) return 3;
+            if (m === 1) return 6;
+            if (m === 2) return 6;
+            if (m === 3) return 6;
+            if (m === 4) return 15;
+            if (m === 5) return 12;
+            //   M6: 3 dirs (D1, D2, D3) → 9
+            if (m === 6) return 9;
+            return 3;
+        }
+
+        // Generate a MATCH trial key (same signature as nBack) but with maximally
+        // varied directional surface vs the previous trial. This breaks the
+        // "same-direction-texture = match" heuristic that would otherwise let
+        // users decide before the full premise is spoken — especially at N=1
+        // where the previous trial IS the n-back target.
+        generateVariedMatchKey(mode, nBackKey, nBackSig, prevKey, isN1) {
+            const m = parseInt(mode);
+            // For M0/M1, the key IS the signature — we can't vary direction surface
+            // while preserving match status. Fall back to direct reuse.
+            if (m === 0 || m === 1) return nBackKey;
+
+            // For M2-M5: sample multiple keys matching the signature, pick the
+            // one whose direction surface is MOST DIFFERENT from prev (so
+            // direction-conflict score is high — like non-match trials would be).
+            // This statistically equalizes match vs non-match conflict signatures.
+            const candidates = [];
+            const candidateCount = 24;
+            let attempts = 0;
+            const maxAttempts = candidateCount * 12;
+            while (candidates.length < candidateCount && attempts < maxAttempts) {
+                const k = this.newKey(mode);
+                attempts++;
+                if (this.matchSignature(k, mode) !== nBackSig) continue;
+                const score = prevKey ? this.directionalConflictScore(k, prevKey, mode) : 0;
+                candidates.push({ key: k, score });
+            }
+            if (candidates.length === 0) return nBackKey;
+            if (!prevKey) return candidates[0].key;
+
+            // At N=1, target the SAME conflict level that non-match trials use
+            // (interferingFrac × maxC). This makes match and non-match trials
+            // statistically indistinguishable at the direction level — the leak
+            // fix only requires EQUALITY between the two distributions, not any
+            // specific absolute level. Therefore the slider controls the actual
+            // conflict intensity even at N=1.
+            //
+            // At N≥2 the previous trial isn't the n-back, so varied match keys
+            // can sit anywhere; we use a moderate target (0.5 × maxC) for
+            // pleasant pacing without revealing match status.
+            const maxC = this.modeMaxConflict(mode);
+            const interferingFrac = Math.max(0, Math.min(1, this.getInterferencePct() / 100));
+            const targetScore = isN1 ? (maxC * interferingFrac) : (maxC * 0.5);
+            const sigma = Math.max(0.5, maxC * 0.22);
+            let totalWeight = 0;
+            const weights = candidates.map(c => {
+                const d = c.score - targetScore;
+                const w = Math.exp(-(d * d) / (2 * sigma * sigma));
+                totalWeight += w;
+                return w;
+            });
+            if (totalWeight === 0) return candidates[0].key;
+            let r = this.rng.next() * totalWeight;
+            for (let i = 0; i < candidates.length; i++) {
+                r -= weights[i];
+                if (r <= 0) return candidates[i].key;
+            }
+            return candidates[candidates.length - 1].key;
+        }
+
+        // Generate a non-match key targeting a specific fraction of the maximum
+        // achievable directional conflict for this mode.
+        //
+        // Calibration: at slider=75%, the expected conflict score lands at
+        // ~0.75 × maxConflict(mode) across ALL modes, regardless of structural ceiling.
+        //
+        // CRITICAL N=1 ADJUSTMENT: at N=1, the previous trial IS the n-back
+        // target, so high directional conflict with the previous trial directly
+        // signals "no match" — leaking the answer. At N=1 we target a NEUTRAL
+        // conflict level matching what natural match trials produce (~75% which
+        // also happens to be where generateVariedMatchKey targets at N=1).
+        // This statistically equalizes match and non-match conflict distributions,
+        // preventing pre-decision based on "directional texture."
+        //
+        // Method:
+        //  1. Sample many candidates (sorted by score ascending)
+        //  2. Apply a tight, asymmetric kernel centered on targetScore
+        //  3. Sample probabilistically by weight
+        generateConflictingNonMatchKey(mode, nBackSig, prevKey, interferencePct, n) {
+            const interferingFrac = Math.max(0, Math.min(1, interferencePct / 100));
+            const maxConflict = this.modeMaxConflict(mode);
+            // At N=1, the previous trial IS the n-back. If non-match keys had
+            // a different directional-conflict distribution than match keys, the
+            // user could decide based on "feel" without working memory.
+            //
+            // The leak fix requires only EQUALITY between match and non-match
+            // distributions at N=1, not any specific level. Both paths target
+            // `interferingFrac × maxConflict` so the slider value is the actual
+            // conflict level the user experiences — at N=1 and at higher N.
+            const targetScore = interferingFrac * maxConflict;
+
+            const candidateCount = 32;
+            const candidates = [];
+            let attempts = 0;
+            const maxAttempts = candidateCount * 6;
+            while (candidates.length < candidateCount && attempts < maxAttempts) {
+                const k = this.newKey(mode);
+                attempts++;
+                if (nBackSig && this.matchSignature(k, mode) === nBackSig) continue;
+                const score = prevKey ? this.directionalConflictScore(k, prevKey, mode) : 0;
+                candidates.push({ key: k, score });
+            }
+            if (candidates.length === 0) return this.newKey(mode);
+            if (!prevKey) return candidates[0].key;
+
+            // Asymmetric kernel: tighter on below-target side to push expected
+            // value upward toward target; wider on above-target side for variation.
+            // Tighter sigma at higher interference → stronger selection pressure.
+            const sigmaBelow = Math.max(0.3, maxConflict * (0.20 - interferingFrac * 0.10));
+            const sigmaAbove = Math.max(0.5, maxConflict * 0.22);
+            let totalWeight = 0;
+            const weights = candidates.map(c => {
+                const d = c.score - targetScore;
+                const sig = d < 0 ? sigmaBelow : sigmaAbove;
+                const w = Math.exp(-(d * d) / (2 * sig * sig));
+                totalWeight += w;
+                return w;
+            });
+            if (totalWeight === 0) return candidates[0].key;
+
+            let r = this.rng.next() * totalWeight;
+            for (let i = 0; i < candidates.length; i++) {
+                r -= weights[i];
+                if (r <= 0) return candidates[i].key;
+            }
+            return candidates[candidates.length - 1].key;
+        }
+
+        // ===== Cognitive Interference Engine =====
+        // Generates symbol assignments that DELIBERATELY induce structural overlap
+        // with prior trials, forcing working-memory consolidation.
+        //
+        // CORE PATTERNS (mode-agnostic, always available):
+        //   FRESH          → no symbols reused from previous trial (cognitive reset)
+        //   ANCHOR         → one symbol kept in SAME syntactic role
+        //   REVERSE_CHAIN  → previous SUBJECT becomes current OBJECT (subj→obj)
+        //   INVERSION      → both letters reused with roles swapped
+        //   CHAIN          → previous OBJECT becomes current SUBJECT (obj→subj, strongest)
+        //   INTERVENING    → letters from the i-1 trial appear in a way that tempts
+        //                    a false N-back match (only meaningful at N≥2)
+        //
+        // MODE-SPECIFIC PATTERNS (only enabled for the matching mode):
+        //   M2_TAIL_CHAIN     → prev s3 → current s1 (Mode 2's third-slot chain)
+        //   M2_MID_PERSIST    → prev s2 → current s2 (middle-object persistence)
+        //   M2_TRIPLE_SHIFT   → all three slots shift one position (s1←prev.s2, s2←prev.s3)
+        //   M3_INNER_CARRY    → previous s1 becomes the inner-direction referent (s1)
+        //                       while s2 is fresh — exploits M3's repeated inner direction
+        //   M4_CORNER_SWAP    → previous s2 (corner 2) becomes current s1 (corner 1)
+        //                       — strong because both are "corner-of X" compound refs
+        //   M5_CROSS_PAIR     → previous s2 (pair B object) becomes current s1 (pair A object)
+        //                       — bridges across the "as" analogy boundary
+        //
+        // The interference slider controls the total interference rate. The
+        // mode-specific patterns BORROW probability mass from the core pool when
+        // that mode is active, maximizing per-mode variation diversity.
+        pickSymbolsWithInterference(slotCount, prevSymbols, nBackSymbols, interferencePct, mode, history, n) {
+            const rng = this.rng;
+            const symPool = SYMBOLS;
+            const m = parseInt(mode);
+
+            const freshFrac = Math.max(0, Math.min(1, 1 - interferencePct / 100));
+            const interferingFrac = 1 - freshFrac;
+
+            // Determine which patterns are available for this mode
+            const hasPrev = prevSymbols && prevSymbols.length >= 2;
+            const prevPrev = (history && history.length >= 2) ? history[history.length - 2] : null;
+            const canIntervene = (n >= 2) && prevPrev && prevPrev.syms;
+
+            // Core pattern weights (sum to 1 within the interfering pool)
+            // Mode-specific patterns add to the pool, with weights drawn from core
+            const corePatterns = [
+                ['CHAIN',         0.18],
+                ['INVERSION',     0.14],
+                ['REVERSE_CHAIN', 0.11],
+                ['ANCHOR',        0.10],
+            ];
+            // Intervening-item lure is independent of mode but requires N≥2
+            const interveningWeight = canIntervene ? 0.13 : 0;
+            // Mode-specific patterns
+            const modeSpecific = [];
+            if (m === 2 && hasPrev && prevSymbols.length >= 3) {
+                modeSpecific.push(['M2_TAIL_CHAIN',  0.12]);
+                modeSpecific.push(['M2_MID_PERSIST', 0.10]);
+                modeSpecific.push(['M2_TRIPLE_SHIFT',0.12]);
+            }
+            if (m === 3 && hasPrev) {
+                modeSpecific.push(['M3_INNER_CARRY', 0.34]);
+            }
+            if (m === 4 && hasPrev) {
+                modeSpecific.push(['M4_CORNER_SWAP', 0.34]);
+            }
+            if (m === 5 && hasPrev) {
+                modeSpecific.push(['M5_CROSS_PAIR',  0.34]);
+            }
+
+            // Normalize all interfering pattern weights to sum to 1, then scale by interferingFrac
+            const allInterfering = [...corePatterns, ['INTERVENING', interveningWeight], ...modeSpecific]
+                .filter(p => p[1] > 0);
+            const weightSum = allInterfering.reduce((a, p) => a + p[1], 0);
+            const scaled = allInterfering.map(([n,w]) => [n, (w / weightSum) * interferingFrac]);
+
+            // Sample pattern
+            let pattern = 'FRESH';
+            if (hasPrev) {
+                const r = rng.next();
+                let acc = freshFrac;
+                if (r < acc) pattern = 'FRESH';
+                else {
+                    for (const [pn, pw] of scaled) {
+                        acc += pw;
+                        if (r < acc) { pattern = pn; break; }
+                    }
+                }
+            }
+
+            const prev = prevSymbols || [];
+            const prevSub = prev[0], prevObj = prev[1], prevObj2 = prev[2];
+
+            const drawExcept = (exclude) => {
+                const excludeSet = new Set(exclude.filter(Boolean));
+                let attempts = 0, v;
+                do { v = rng.choice(symPool); attempts++; }
+                while (excludeSet.has(v) && attempts < 50);
+                return v;
+            };
+
+            let s1, s2, s3;
+            switch (pattern) {
+                case 'CHAIN': {
+                    s1 = prevObj;
+                    s2 = drawExcept([s1, prevSub]);
+                    if (slotCount === 3) s3 = drawExcept([s1, s2]);
+                    break;
+                }
+                case 'INVERSION': {
+                    s1 = prevObj;
+                    s2 = prevSub;
+                    if (slotCount === 3) s3 = drawExcept([s1, s2, prevObj2]);
+                    break;
+                }
+                case 'REVERSE_CHAIN': {
+                    s2 = prevSub;
+                    s1 = drawExcept([s2, prevObj]);
+                    if (slotCount === 3) s3 = drawExcept([s1, s2]);
+                    break;
+                }
+                case 'ANCHOR': {
+                    if (rng.next() < 0.5) {
+                        s1 = prevSub;
+                        s2 = drawExcept([s1, prevObj]);
+                    } else {
+                        s2 = prevObj;
+                        s1 = drawExcept([s2, prevSub]);
+                    }
+                    if (slotCount === 3) s3 = drawExcept([s1, s2]);
+                    break;
+                }
+                case 'INTERVENING': {
+                    // Intervening-item conflict: use letters from a trial BETWEEN
+                    // the current position and the n-back target (i.e., position
+                    // i-k for some 1 ≤ k < N). These are NOT the n-back, so
+                    // borrowing their letters creates a false-match lure.
+                    //
+                    // At N=2, only i-1 is available. At N=10, there are 9 possible
+                    // intervening positions. We pick a random one each time, which
+                    // makes the lure unpredictable and exploits the full N-back
+                    // span structure.
+                    let intervening = null;
+                    if (history && history.length >= 2 && n >= 2) {
+                        // Available intervening indices: from history[history.length - 1]
+                        // (most recent = i-1) back through history[history.length - (n-1)]
+                        // (one step before the n-back). We exclude the most recent ONLY
+                        // because that's `prev` which is already targeted by CHAIN/etc.
+                        // patterns; using i-2..i-(n-1) gives a different texture.
+                        const maxBack = Math.min(history.length, n - 1);
+                        // Bias: 60% chance to use i-2 (classic intervening), 40% chance
+                        // to use a random deeper position (i-3..i-(n-1)) when N is high.
+                        let pickIdx;
+                        if (maxBack >= 2 && rng.next() < 0.6) {
+                            pickIdx = 2; // i-2
+                        } else if (maxBack > 1) {
+                            // Random from 2..maxBack
+                            pickIdx = 2 + Math.floor(rng.next() * (maxBack - 1));
+                        } else {
+                            pickIdx = 1; // fallback at N=2
+                        }
+                        const candidate = history[history.length - pickIdx];
+                        if (candidate && candidate.syms) intervening = candidate.syms;
+                    }
+                    if (!intervening && prevPrev && prevPrev.syms) {
+                        intervening = prevPrev.syms;
+                    }
+                    if (!intervening) {
+                        // Fall through to a fresh draw if no intervening item available
+                        const excl = [prevSub, prevObj, prevObj2].filter(Boolean);
+                        s1 = drawExcept(excl);
+                        s2 = drawExcept([...excl, s1]);
+                        if (slotCount === 3) s3 = drawExcept([...excl, s1, s2]);
+                        break;
+                    }
+                    // Mix: take one letter from i-1 (`prev`) and one from the intervening item
+                    if (rng.next() < 0.5) {
+                        s1 = prev[rng.next() < 0.5 ? 0 : 1];
+                        s2 = intervening[rng.next() < 0.5 ? 0 : 1];
+                    } else {
+                        s1 = intervening[rng.next() < 0.5 ? 0 : 1];
+                        s2 = prev[rng.next() < 0.5 ? 0 : 1];
+                    }
+                    if (s1 === s2) s2 = drawExcept([s1]);
+                    if (slotCount === 3) s3 = drawExcept([s1, s2]);
+                    break;
+                }
+                case 'M2_TAIL_CHAIN': {
+                    // Prev s3 → current s1 (third object becomes new subject)
+                    s1 = prevObj2;
+                    s2 = drawExcept([s1, prevSub, prevObj]);
+                    s3 = drawExcept([s1, s2]);
+                    break;
+                }
+                case 'M2_MID_PERSIST': {
+                    // Prev s2 persists as current s2 (middle object stays — high interference
+                    // because it's the syntactic pivot between two relations)
+                    s2 = prevObj;
+                    s1 = drawExcept([s2, prevSub]);
+                    s3 = drawExcept([s1, s2, prevObj2]);
+                    break;
+                }
+                case 'M2_TRIPLE_SHIFT': {
+                    // All three slots shift one position: prev.s2 → s1, prev.s3 → s2, new s3
+                    s1 = prevObj;
+                    s2 = prevObj2;
+                    s3 = drawExcept([s1, s2, prevSub]);
+                    break;
+                }
+                case 'M3_INNER_CARRY': {
+                    // Mode 3 has structure: "Point D of X, is D' of point D of Y"
+                    // X (=s1) is the inner-direction referent on the left.
+                    // Carry X forward: previous s2 (right inner referent) becomes new s1
+                    // (left inner referent). This creates a sliding chain of inner refs.
+                    s1 = prevObj;
+                    s2 = drawExcept([s1, prevSub]);
+                    break;
+                }
+                case 'M4_CORNER_SWAP': {
+                    // Mode 4 structure: "The A-B corner of X, is C of the D-E corner of Y"
+                    // Both corners are compound refs. Carrying Y → new X means the
+                    // user must re-evaluate the same letter under a new compound direction.
+                    s1 = prevObj;
+                    s2 = drawExcept([s1, prevSub]);
+                    break;
+                }
+                case 'M5_CROSS_PAIR': {
+                    // Mode 5 structure: "D1 to D2 of X, as D3 to D4 of Y"
+                    // Cross-pair chain: previous Y (s2) becomes current X (s1).
+                    // The analogy bridge is now load-bearing on a reused letter.
+                    s1 = prevObj;
+                    s2 = drawExcept([s1, prevSub]);
+                    break;
+                }
+                case 'FRESH':
+                default: {
+                    const excl = [prevSub, prevObj, prevObj2].filter(Boolean);
+                    s1 = drawExcept(excl);
+                    s2 = drawExcept([...excl, s1]);
+                    if (slotCount === 3) s3 = drawExcept([...excl, s1, s2]);
+                    break;
+                }
+            }
+
+            // ===== N-BACK FAMILIARITY LURE =====
+            // Independently of pattern, ~12% of trials at N≥1 force one symbol to
+            // match the actual n-back trial's letters — pure familiarity bait that
+            // tests precise positional binding. Skipped if pattern already locks both slots.
+            const lockBoth = (pattern === 'INVERSION' || pattern === 'INTERVENING' || pattern === 'M2_TRIPLE_SHIFT');
+            if (!lockBoth && nBackSymbols && nBackSymbols.length >= 2 && rng.next() < 0.12) {
+                const nBackChoice = rng.choice(nBackSymbols.slice(0, slotCount));
+                if (slotCount === 3) {
+                    if (nBackChoice !== s1 && nBackChoice !== s2) s3 = nBackChoice;
+                } else {
+                    // Find a slot that isn't fixed by the current pattern
+                    const slot1Fixed = (
+                        pattern === 'CHAIN' || pattern === 'M3_INNER_CARRY' ||
+                        pattern === 'M4_CORNER_SWAP' || pattern === 'M5_CROSS_PAIR' ||
+                        (pattern === 'ANCHOR' && s1 === prevSub)
+                    );
+                    const slot2Fixed = (
+                        pattern === 'REVERSE_CHAIN' ||
+                        (pattern === 'ANCHOR' && s2 === prevObj)
+                    );
+                    if (slot1Fixed && !slot2Fixed && nBackChoice !== s1) s2 = nBackChoice;
+                    else if (slot2Fixed && !slot1Fixed && nBackChoice !== s2) s1 = nBackChoice;
+                    else if (!slot1Fixed && !slot2Fixed) {
+                        if (rng.next() < 0.5 && nBackChoice !== s2) s1 = nBackChoice;
+                        else if (nBackChoice !== s1) s2 = nBackChoice;
+                    }
+                }
+            }
+
+            // Final safety: ensure no self-reference
+            if (s1 === s2) s2 = drawExcept([s1]);
+            if (slotCount === 3 && (s3 === s1 || s3 === s2)) s3 = drawExcept([s1, s2]);
+
+            return { syms: slotCount === 3 ? [s1, s2, s3] : [s1, s2], pattern };
+        }
+
+        // Pick fresh symbols that share no letters with the previous trial.
+        // Used as a fallback when the standard interference pattern would
+        // produce a semantic tautology with prev.
+        pickFreshSymbols(slotCount, prevSymbols) {
+            const rng = this.rng;
+            const exclude = new Set((prevSymbols || []).filter(Boolean));
+            const draw = (extraExclude) => {
+                const all = new Set([...exclude, ...extraExclude]);
+                let v, attempts = 0;
+                do { v = rng.choice(SYMBOLS); attempts++; }
+                while (all.has(v) && attempts < 50);
+                return v;
+            };
+            const s1 = draw([]);
+            const s2 = draw([s1]);
+            if (slotCount === 3) {
+                const s3 = draw([s1, s2]);
+                return { syms: [s1, s2, s3], pattern: 'FRESH' };
+            }
+            return { syms: [s1, s2], pattern: 'FRESH' };
+        }
+
+        // ===== Semantic Tautology Filter =====
+        // Detects when a candidate trial conveys the SAME spatial information
+        // as the previous trial — either verbatim repeat or inverted restatement.
+        // Examples:
+        //   "J is East of X" → "X is West of J"        (inversion tautology)
+        //   "J is East of X" → "J is East of X"        (verbatim repeat)
+        //   "The N of A, is E of the N of B" → "The N of B, is W of the N of A"
+        //
+        // These pairs satisfy NUMERIC interference (letter reuse, opposite direction)
+        // but defeat the COGNITIVE purpose: the user pattern-matches "I just heard
+        // that" instead of doing relational reasoning. We reject them universally,
+        // regardless of interference slider level.
+        // ===== Canonical Semantic Form =====
+        // Compute a CANONICAL string representation of a premise's spatial content
+        // such that any two premises with the same canonical form convey the same
+        // information (and thus form a tautology when consecutive).
+        //
+        // This is the foundation of the tautology filter. Two trials are
+        // semantically equivalent iff their canonical forms match.
+        //
+        // Key insight: many "different-looking" premises describe the same fact:
+        //   - "J is E of X"  and  "X is W of J"           (same fact, inverted phrasing)
+        //   - "The N of A is E of N of B" and "S of A is E of S of B"
+        //       (inner direction cancels; both say "A is E of B")
+        //   - M4 with corner1==corner2 reduces to "A is D3 of B"
+        //   - M5's two pairs can appear in either order (already handled by sorted atoms)
+        //   - M2's two clauses can appear in either order (clause order is arbitrary)
+        canonicalPremise(key, syms, mode) {
+            const m = parseInt(mode);
+            const p = key.split('-');
+            const opp = { N: 'S', S: 'N', E: 'W', W: 'E' };
+
+            // ----- Mode 0 -----
+            // Two letters and one direction. Canonicalize so the alphabetically
+            // first letter is the subject; flip direction if needed.
+            //   "J is E of X" → subj=J, obj=X, dir=E → canonical: M0|J|X|E
+            //   "X is W of J" → subj=X, obj=J, dir=W → flip: subj=J, obj=X, dir=E
+            //   → canonical: M0|J|X|E    (same → tautology)
+            if (m === 0) {
+                let subj = syms[0], obj = syms[1], dir = p[1];
+                if (subj > obj) { [subj, obj] = [obj, subj]; dir = opp[dir]; }
+                return `M0|${subj}|${obj}|${dir}`;
+            }
+
+            // ----- Mode 1 -----
+            // Two letters and a perpendicular direction pair.
+            // Canonicalize letters alphabetically; if swapped, invert both directions.
+            //   "J is N&E of X" → subj=J, obj=X, dirs={N,E}
+            //   "X is S&W of J" → subj=X, obj=J, dirs={S,W} → invert → {N,E}
+            //   → both canonical: M1|J|X|EN
+            if (m === 1) {
+                let subj = syms[0], obj = syms[1];
+                let dirs = p[1].split('');
+                if (subj > obj) {
+                    [subj, obj] = [obj, subj];
+                    dirs = dirs.map(d => opp[d]);
+                }
+                return `M1|${subj}|${obj}|${dirs.sort().join('')}`;
+            }
+
+            // ----- Mode 2 -----
+            // Subject letter, plus two (direction, anchor) clauses.
+            // The order of clauses doesn't matter semantically:
+            //   "X is N of Y, and E of Z"  ==  "X is E of Z, and N of Y"
+            // Canonical: subject + SORTED set of (dir, anchor) pairs.
+            //   M2-N-E with syms=[X,Y,Z]:
+            //     clauses: {(N,Y), (E,Z)}
+            //     sorted:  "E:Z|N:Y"
+            //     canonical: M2|X||E:Z|N:Y
+            if (m === 2) {
+                const subj = syms[0];
+                const clauses = [`${p[1]}:${syms[1]}`, `${p[2]}:${syms[2]}`].sort();
+                return `M2|${subj}|${clauses.join('|')}`;
+            }
+
+            // ----- Mode 3 -----
+            // M3 form: "X to D1, Y to D2" — Homology: comparing how two
+            // letters transform. Semantically the premise is the unordered set of
+            // (letter, direction) bindings — "X to N, Y to E" and
+            // "Y to E, X to N" assert the same two facts. Canonical = sorted
+            // (letter, direction) bindings.
+            if (m === 3) {
+                const bindings = [`${syms[0]}:${p[1]}`, `${syms[1]}:${p[2]}`].sort();
+                return `M3|${bindings.join('|')}`;
+            }
+
+            // ----- Mode 4 -----
+            // M4 form: "X to D1 then D2, Y to D3 then D4, X is D5 of Y"
+            // X's path endpoint = X + D1 + D2 (vector sum)
+            // Y's path endpoint = Y + D3 + D4
+            // Premise: (X + D1 + D2) = (Y + D3 + D4) + D5
+            // Simplifies to: X = Y + (D3 + D4 + D5 - D1 - D2) = Y + net_displacement
+            //
+            // Two M4 trials are tautological iff they assert the same net
+            // displacement between the same two letters (regardless of which
+            // specific path-steps and connector produced that net).
+            if (m === 4) {
+                const dvec = { N: [0,1], S: [0,-1], E: [1,0], W: [-1,0] };
+                const sumD = (...ds) => ds.reduce((a,d) => [a[0]+dvec[d][0], a[1]+dvec[d][1]], [0,0]);
+                const c1 = p[1], c2 = p[2], d3 = p[3];
+                // Net displacement of subj relative to obj
+                const disp = sumD(c2[0], c2[1], d3);
+                const negC1 = sumD(c1[0], c1[1]);
+                let net = [disp[0] - negC1[0], disp[1] - negC1[1]];
+                let subj = syms[0], obj = syms[1];
+                // Canonical letter order
+                if (subj > obj) {
+                    [subj, obj] = [obj, subj];
+                    net = [-net[0], -net[1]];
+                }
+                return `M4|${subj}|${obj}|${net[0]},${net[1]}`;
+            }
+
+            // ----- Mode 5 -----
+            // "D1 to D2 of X, as D3 to D4 of Y"
+            // Symmetric: pair-order doesn't matter.
+            // Each pair has an (atom, letter) binding.
+            // Canonical: sorted set of (atom, letter) bindings.
+            if (m === 5) {
+                const t = p[3], ax = p[4];
+                const atomA = t[0] + ax[0], atomB = t[1] + ax[1];
+                const bindings = [`${atomA}:${syms[0]}`, `${atomB}:${syms[1]}`].sort();
+                return `M5|${bindings.join('|')}`;
+            }
+
+            // ----- Mode 6 -----
+            // "D1 to D2 of X, D2 to D3 of Y, so D1 to D3 of X"
+            // Asymmetric structure — X and Y play different roles:
+            //   X = first chain step (D1→D2) and named composite (D1→D3)
+            //   Y = bridge step (D2→D3)
+            // Two M6 trials are tautological iff they have the same chain
+            // directions on the same letters in the same roles.
+            if (m === 6) {
+                return `M6|${p[1]}|${p[2]}|${p[3]}|${syms[0]}|${syms[1]}`;
+            }
+
+            // Unknown mode — fall back to literal key+syms
+            return `${key}|${syms.join('')}`;
+        }
+
+        // Returns true if the proposed (key, syms) is semantically equivalent to
+        // the previous trial's (prevKey, prevSyms). Implemented via canonical
+        // form comparison.
+        isSemanticTautology(key, syms, prevKey, prevSyms, mode) {
+            if (!prevKey || !prevSyms) return false;
+            const cur = this.canonicalPremise(key, syms, mode);
+            const prev = this.canonicalPremise(prevKey, prevSyms, mode);
+            return cur === prev;
+        }
+
+        renderText(key, prevSymbols, nBackSymbols, history, n) {
+            const rng = this.rng;
+            const p = key.split('-');
+            const m = p[0];
+            const slotCount = (m === 'M2') ? 3 : 2;
+            const modeNum = m.replace('M', '');
+            const prevKey = (history && history.length > 0) ? history[history.length - 1].key : null;
+
+            const ipct = this.getInterferencePct();
+            let result = this.pickSymbolsWithInterference(slotCount, prevSymbols, nBackSymbols, ipct, modeNum, history, n);
+
+            // ===== Tautology filter =====
+            // If the chosen (key, syms) is a semantic tautology with the previous
+            // premise, regenerate symbols with FRESH-only pattern (excludes prev's
+            // letters), then re-check. This applies REGARDLESS of interference slider
+            // level — semantic tautologies always defeat cognitive load by collapsing
+            // relational reasoning into pattern-matching.
+            if (prevKey && prevSymbols) {
+                let attempts = 0;
+                while (this.isSemanticTautology(key, result.syms, prevKey, prevSymbols, modeNum) && attempts < 4) {
+                    // Force a non-tautological assignment: pick fresh letters that
+                    // don't reuse any of prev's symbols.
+                    result = this.pickFreshSymbols(slotCount, prevSymbols);
+                    attempts++;
+                }
+                // Final defensive fallback: if STILL tautological after fresh draws
+                // (shouldn't happen with 23 letters and fresh constraint), pick
+                // uniformly random letters with no constraints.
+                if (this.isSemanticTautology(key, result.syms, prevKey, prevSymbols, modeNum)) {
+                    result = { syms: this.pickFreshSymbols(slotCount, prevSymbols).syms, pattern: 'FRESH' };
+                }
+            }
+            const [s1, s2, s3] = result.syms;
+
+            let text;
+            if (m === 'M1') {
+                const dirs = [p[1][0], p[1][1]];
+                if (rng.next() < 0.5) dirs.reverse();
+                text = `${s1} is ${REL[dirs[0]]} and ${REL[dirs[1]]} of ${s2}`;
+            }
+            else if (m === 'M2') text = `${s1} is ${REL[p[1]]} of ${s2}, and ${REL[p[2]]} of ${s3}`;
+            else if (m === 'M3') text = `${s1} to ${REL[p[1]]}, ${s2} to ${REL[p[2]]}`;
+            else if (m === 'M4') text = `${s1} to ${REL[p[1][0]]} then ${REL[p[1][1]]}, ${s2} to ${REL[p[2][0]]} then ${REL[p[2][1]]}, ${s1} is ${REL[p[3]]} of ${s2}`;
+            else if (m === 'M5') {
+                const sA = p[1].split(''), sB = p[2].split('');
+                // Randomize order: 50% present pair A first, 50% pair B first.
+                // This prevents the user from deciding the match before hearing
+                // the full premise (since match signature is order-independent).
+                if (rng.next() < 0.5) {
+                    text = `${REL[sA[0]]} to ${REL[sA[1]]} of ${s1}, as ${REL[sB[0]]} to ${REL[sB[1]]} of ${s2}`;
+                } else {
+                    text = `${REL[sB[0]]} to ${REL[sB[1]]} of ${s2}, as ${REL[sA[0]]} to ${REL[sA[1]]} of ${s1}`;
+                }
+            }
+            else if (m === 'M6') {
+                // M6 (Transitive Composition): pure chain composition.
+                // p[1]=D1, p[2]=D2, p[3]=D3 (the chain endpoint, always true)
+                // Surface: "D1 to D2 of X, D2 to D3 of Y, so D1 to D3 of X"
+                // X carries the first step (D1→D2) and the named composite (D1→D3).
+                // Y carries the bridge step (D2→D3); D2 is the shared midpoint.
+                // The "so" binder names clause 3 as the composite the user has
+                // just constructed via Da Vinci transformation, not as a
+                // falsifiable claim. Every premise is a real chain.
+                text = `${REL[p[1]]} to ${REL[p[2]]} of ${s1}, ${REL[p[2]]} to ${REL[p[3]]} of ${s2}, so ${REL[p[1]]} to ${REL[p[3]]} of ${s1}`;
+            }
+            else text = `${s1} is ${REL[p[1]]} of ${s2}`;
+
+            return { text, syms: result.syms, pattern: result.pattern };
+        }
+
+        getInterferencePct() {
+            const el = document.getElementById('interference-slider');
+            return el ? parseInt(el.value) : 60;
+        }
+
+        // ===== Wake Lock =====
+        async requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator && this.running) {
+                    this.wakeLock = await navigator.wakeLock.request('screen');
+                    this.wakeLock.addEventListener('release', () => { this.wakeLock = null; });
+                }
+            } catch (_) {}
+        }
+        async releaseWakeLock() {
+            try { if (this.wakeLock) { await this.wakeLock.release(); this.wakeLock = null; } } catch(_) {}
+        }
+
+        // ===== Start / Pause / Stop =====
+        async start() {
+            // Hardened re-entrancy guard
+            if (this.running || this.starting) return;
+            this.starting = true;
+            try {
+                // Synchronous state lock — must happen BEFORE any await
+                this.running = true;
+                this.paused = false;
+                this.epoch++;
+                this.resetCounters();
+                this.history = [];
+                this.startTime = Date.now();
+                this.lastPauseStart = 0;
+                this.totalPausedMs = 0;
+
+                const mins = parseInt(document.getElementById('session-slider').value);
+                this.endTime = Date.now() + (mins * 60 * 1000);
+                this.totalSessionMs = mins * 60 * 1000;
+
+                // UI state immediately
+                document.getElementById('start-btn').disabled = true;
+                document.getElementById('pause-btn').disabled = false;
+                document.getElementById('pause-btn').textContent = 'Pause';
+                document.getElementById('stop-btn').disabled = false;
+                this.closeModal('summary');
+                document.getElementById('premise-display').classList.remove('hidden-mode');
+                document.getElementById('recovery-banner').classList.remove('show');
+                // Apply practice-mode body class if checkbox is on
+                document.body.classList.toggle('practice-active',
+                    document.getElementById('practice-mode').checked);
+                this.updateUI();
+                this.startSessionProgressTimer();
+
+                try {
+                    // AudioContext was created in primeAudioFromUserGesture (click).
+                    // Here we just ensure it's running (it may have suspended).
+                    if (this.audioCtx && this.audioCtx.state === 'suspended') {
+                        this.audioCtx.resume().catch(()=>{});
+                    }
+                } catch (_) {}
+
+                // SpeechSynthesis was primed in primeAudioFromUserGesture.
+                // Do not await any priming utterance here — that breaks iOS gesture chain.
+
+                await this.requestWakeLock();
+                this.voice = pickVoice();
+
+                if (!this.running) return;
+                // On mobile, fire "Link established" non-blocking — the
+                // initial countdown can proceed visually even if speech is
+                // still warming up. On desktop, await it for proper pacing.
+                if (this.isMobileDevice()) {
+                    this.speak("Link established.", 1.0).catch(() => {});
+                    // Brief delay so the countdown doesn't appear instantly
+                    await this.sleep(400);
+                } else {
+                    await this.speak("Link established.", 1.0);
+                }
+                if (!this.running) return;
+                await this.runInitialCountdown();
+                if (this.running) this.pulse();
+            } finally {
+                this.starting = false;
+            }
+        }
+
+        togglePause() {
+            if (!this.running) return;
+            if (this.paused) {
+                // Resume
+                this.paused = false;
+                document.getElementById('paused-overlay').classList.remove('show');
+                document.getElementById('pause-btn').textContent = 'Pause';
+                const pauseDuration = Date.now() - this.lastPauseStart;
+                this.endTime += pauseDuration;
+                this.totalPausedMs += pauseDuration;
+
+                // If we were in response phase, restart timer with remaining time
+                if (this.responsePhase && !this.answered) {
+                    this.thinkDeadline = Date.now() + this.thinkRemaining;
+                    clearTimeout(this.timer);
+                    this.timer = setTimeout(() => {
+                        if (!this.answered && this.running && !this.paused) this.respond(null);
+                    }, this.thinkRemaining);
+                    // Visually restart timer bar
+                    this.startTimerBarAnimation(this.thinkRemaining, this.thinkTotal);
+                }
+
+                const resolvers = this.pauseResolvers;
+                this.pauseResolvers = [];
+                resolvers.forEach(r => r());
+            } else {
+                // Pause
+                this.paused = true;
+                this.lastPauseStart = Date.now();
+                document.getElementById('paused-overlay').classList.add('show');
+                document.getElementById('pause-btn').textContent = 'Resume';
+                clearTimeout(this.timer);
+                try { this.synth && this.synth.cancel(); } catch(_) {}
+
+                // Capture remaining time and freeze the timer bar at current visual position
+                if (this.responsePhase && !this.answered) {
+                    this.thinkRemaining = Math.max(0, this.thinkDeadline - Date.now());
+                    this.freezeTimerBar();
+                    // Disable response buttons during pause
+                    document.getElementById('match-btn').disabled = true;
+                    document.getElementById('no-match-btn').disabled = true;
+                }
+            }
+        }
+
+        freezeTimerBar() {
+            const bar = document.getElementById('timer-bar');
+            const computed = window.getComputedStyle(bar);
+            const currentWidth = computed.width;
+            bar.style.transition = 'none';
+            bar.style.width = currentWidth;
+        }
+
+        startTimerBarAnimation(remainingMs, totalMs) {
+            const bar = document.getElementById('timer-bar');
+            const pctSoFar = totalMs > 0 ? Math.max(0, Math.min(100, ((totalMs - remainingMs) / totalMs) * 100)) : 0;
+            bar.style.transition = 'none';
+            bar.style.width = pctSoFar + '%';
+            void bar.offsetWidth;
+            bar.style.transition = `width ${(remainingMs/1000)}s linear`;
+            void bar.offsetWidth;
+            bar.style.width = '100%';
+            // Re-enable response buttons
+            document.getElementById('match-btn').disabled = false;
+            document.getElementById('no-match-btn').disabled = false;
+        }
+
+        syncTimerBar() {
+            if (!this.responsePhase || this.answered) return;
+            const elapsed = Date.now() - this.thinkStart;
+            const total = this.thinkTotal;
+            const remaining = Math.max(0, total - elapsed);
+            this.startTimerBarAnimation(remaining, total);
+        }
+
+        async stopRequested() {
+            if (!this.running) return;
+            const needConfirm = document.getElementById('confirm-stop').checked &&
+                                this.totalShown >= 5; // only confirm if a real session is running
+            if (needConfirm) {
+                // Pause while waiting for confirmation
+                const wasPaused = this.paused;
+                if (!wasPaused) this.togglePause();
+                const ok = await showConfirm("SEVER LINK?", `Stop the session now? ${this.totalShown} cycles completed.`);
+                if (!ok) {
+                    if (!wasPaused) this.togglePause(); // resume
+                    return;
+                }
+            }
+            this.stop(true);
+        }
+
+        stop(showSummary = false) {
+            const wasRunning = this.running;
+            this.running = false;
+            this.paused = false;
+            this.epoch++;
+            clearTimeout(this.timer);
+            clearTimeout(this.feedbackTimer);
+            clearInterval(this.sessionUpdateTimer);
+            const resolvers = this.pauseResolvers;
+            this.pauseResolvers = [];
+            resolvers.forEach(r => r());
+            try { this.synth && this.synth.cancel(); } catch(_) {}
+            this.releaseWakeLock();
+
+            document.getElementById('paused-overlay').classList.remove('show');
+            document.getElementById('start-btn').disabled = false;
+            document.getElementById('pause-btn').disabled = true;
+            document.getElementById('stop-btn').disabled = true;
+            document.getElementById('match-btn').disabled = true;
+            document.getElementById('no-match-btn').disabled = true;
+            document.getElementById('timer-bar').style.transition = 'none';
+            document.getElementById('timer-bar').style.width = "0%";
+            document.getElementById('session-progress').style.width = "0%";
+            document.getElementById('countdown-box').textContent = "";
+            document.getElementById('premise-display').classList.remove('muted','hidden-mode');
+            document.getElementById('premise-display').textContent = "SEVERED";
+            this.fitPremiseText();
+
+            this.answered = true;
+            this.currentIsScored = false;
+            this.responsePhase = false;
+            this.clearRecoverySnapshot();
+
+            if (wasRunning && showSummary) this.showSummary();
+        }
+
+        startSessionProgressTimer() {
+            clearInterval(this.sessionUpdateTimer);
+            this.sessionUpdateTimer = setInterval(() => {
+                if (!this.running) { clearInterval(this.sessionUpdateTimer); return; }
+                const now = Date.now();
+                const pausedExtra = this.paused ? (now - this.lastPauseStart) : 0;
+                const elapsed = now - this.startTime - this.totalPausedMs - pausedExtra;
+                const pct = Math.min(100, Math.max(0, (elapsed / this.totalSessionMs) * 100));
+                document.getElementById('session-progress').style.width = pct.toFixed(1) + '%';
+
+                // Periodic recovery snapshot every 10s
+                if (now - (this._lastSnapshot || 0) > 10000) {
+                    this._lastSnapshot = now;
+                    this.saveRecoverySnapshot();
+                }
+            }, 500);
+        }
+
+        // ===== Modal control =====
+        openModal(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.classList.add('show');
+            // Lock body scroll while modal is open
+            document.body.style.overflow = 'hidden';
+            // Move keyboard focus to close button for accessibility
+            const closeBtn = el.querySelector('.modal-close');
+            if (closeBtn) setTimeout(() => closeBtn.focus(), 50);
+            // Scroll modal-inner to top in case it was previously scrolled
+            const inner = el.querySelector('.modal-inner');
+            if (inner) inner.scrollTop = 0;
+        }
+
+        // ===== Premise text auto-fit =====
+        // Shrinks font-size so the premise fits on ONE horizontal line.
+        // Called after every premise update and on window resize.
+        fitPremiseText() {
+            const el = document.getElementById('premise-display');
+            if (!el) return;
+            const container = el.parentElement;
+            const availableWidth = container ? container.clientWidth - 24 : 400; // padding allowance
+            if (!el.textContent || availableWidth <= 0) return;
+
+            // Reset to maximum size, then binary-search down until it fits on one line.
+            // Maximum: scales with viewport, capped at 3rem.
+            const maxPx = Math.min(48, Math.max(22, window.innerWidth * 0.055));
+            const minPx = 14; // floor — never smaller than this
+            // Start at max, shrink in 1px steps until it fits (or hit min)
+            let size = maxPx;
+            el.style.fontSize = size + 'px';
+            // Use scrollWidth vs clientWidth to detect overflow
+            // Loop guard to prevent any pathological case
+            let guard = 0;
+            while (el.scrollWidth > availableWidth && size > minPx && guard < 100) {
+                size -= 1;
+                el.style.fontSize = size + 'px';
+                guard++;
+            }
+            // Adjust min-height to match font-size so layout doesn't jump
+            el.style.minHeight = Math.max(60, size * 1.6) + 'px';
+        }
+
+        closeModal(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.classList.remove('show');
+            // Restore body scroll only if no other modal is open
+            if (!document.querySelector('.modal.show')) {
+                document.body.style.overflow = '';
+            }
+        }
+
+        showSummary() {
+            const elapsedMin = ((Date.now() - this.startTime - this.totalPausedMs) / 60000).toFixed(1);
+
+            // PRACTICE MODE: no scoring — show a minimal session summary
+            const practiceMode = document.getElementById('practice-mode').checked;
+            if (practiceMode) {
+                document.getElementById('summary-title').textContent = "PRACTICE COMPLETE";
+                document.getElementById('summary-body').innerHTML = `
+                    <div class="row"><span>Duration</span><span>${elapsedMin} min</span></div>
+                    <div class="row"><span>Premises heard</span><span>${this.totalShown}</span></div>
+                    <div class="row divider"><span>Mode</span><span></span></div>
+                    <div class="row"><span style="font-size:0.78rem">Practice mode — no scoring, no feedback. You listened and reasoned mentally.</span><span></span></div>
+                `;
+                this.openModal('summary');
+                this.drawDprimeChart();
+                return;
+            }
+
+            const acc = this.totalScored > 0 ? Math.round((this.score / this.totalScored) * 100) : 0;
+            const dp = this.computeDprime();
+            const matchTotal = this.hits + this.misses;
+            const nonMatchTotal = this.falseAlarms + this.correctRejects;
+            const hitRate = matchTotal > 0 ? Math.round((this.hits / matchTotal) * 100) : 0;
+            const crRate = nonMatchTotal > 0 ? Math.round((this.correctRejects / nonMatchTotal) * 100) : 0;
+            const balAcc = matchTotal > 0 && nonMatchTotal > 0 ? Math.round((hitRate + crRate) / 2) : acc;
+            const meanRt = this.rtSamples.length ?
+                (this.rtSamples.reduce((a,b)=>a+b,0) / this.rtSamples.length).toFixed(2) : '—';
+
+            // Per-mode breakdown
+            let modeBreakdown = '';
+            const modeNames = ['Standard','Dialectical','Tensor','Homology','Complementary','Symmetry'];
+            for (const k of Object.keys(this.modeStats)) {
+                const ms = this.modeStats[k];
+                if (ms.scored === 0) continue;
+                const a = Math.round((ms.correct / ms.scored) * 100);
+                modeBreakdown += `<div class="row"><span>Mode ${k} (${modeNames[+k]||''})</span><span>${a}% · ${ms.scored} trials</span></div>`;
+            }
+
+            // Cognitive interference pattern breakdown
+            let patternBreakdown = '';
+            const pcounts = this.patternCounts || {};
+            const totalPatterns = Object.values(pcounts).reduce((a,b)=>a+b, 0);
+            if (totalPatterns > 0) {
+                const order = ['CHAIN','INVERSION','REVERSE_CHAIN','ANCHOR','INTERVENING',
+                               'M2_TAIL_CHAIN','M2_MID_PERSIST','M2_TRIPLE_SHIFT',
+                               'M3_INNER_CARRY','M4_CORNER_SWAP','M5_CROSS_PAIR','FRESH'];
+                const labels = {
+                    CHAIN: 'Chain (obj→subj)',
+                    INVERSION: 'Role-inversion',
+                    REVERSE_CHAIN: 'Reverse-chain (subj→obj)',
+                    ANCHOR: 'Anchor (same-role)',
+                    INTERVENING: 'Intervening-item conflict',
+                    M2_TAIL_CHAIN: 'M2 tail-chain (s3→s1)',
+                    M2_MID_PERSIST: 'M2 mid-persist (s2→s2)',
+                    M2_TRIPLE_SHIFT: 'M2 triple-shift',
+                    M3_INNER_CARRY: 'M3 letter-chain (subj→obj)',
+                    M4_CORNER_SWAP: 'M4 letter-chain (subj→obj)',
+                    M5_CROSS_PAIR: 'M5 cross-pair',
+                    FRESH: 'Fresh (no overlap)'
+                };
+                const interfered = totalPatterns - (pcounts.FRESH || 0);
+                const ipctActual = Math.round((interfered / totalPatterns) * 100);
+                const dirAvg = this.dirConflictTrials > 0 ? (this.dirConflictTotal / this.dirConflictTrials) : 0;
+                // Per-mode max conflict (matches modeMaxConflict in engine)
+                const modeMaxLookup = {'0':3,'1':6,'2':6,'3':6,'4':15,'5':12,'6':9};
+                const sessionMode = document.getElementById('logic-mode').value;
+                const dirMax = modeMaxLookup[sessionMode] || 3;
+                const dirPct = Math.round((dirAvg / dirMax) * 100);
+                // UNIFIED LOGICAL CONFLICT: average of letter-interference rate and
+                // directional-conflict utilization. This is the single metric the
+                // slider targets at 75%.
+                const unifiedConflict = Math.round((ipctActual + dirPct) / 2);
+                patternBreakdown = `<div class="row"><span><b>UNIFIED LOGICAL CONFLICT</b></span><span><b>${unifiedConflict}%</b></span></div>`;
+                patternBreakdown += `<div class="row"><span style="font-size:0.78rem">  · letter interference</span><span>${ipctActual}%</span></div>`;
+                patternBreakdown += `<div class="row"><span style="font-size:0.78rem">  · directional conflict</span><span>${dirPct}% (${dirAvg.toFixed(2)}/${dirMax})</span></div>`;
+                for (const p of order) {
+                    const c = pcounts[p] || 0;
+                    if (c === 0) continue;
+                    const pct = Math.round((c / totalPatterns) * 100);
+                    patternBreakdown += `<div class="row"><span style="font-size:0.8rem">  ${labels[p]}</span><span>${pct}% (${c})</span></div>`;
+                }
+            }
+
+            const body = `
+                <div class="row"><span>Duration</span><span>${elapsedMin} min</span></div>
+                <div class="row"><span>Trials shown</span><span>${this.totalShown}</span></div>
+                <div class="row"><span>Trials scored</span><span>${this.totalScored}</span></div>
+                <div class="row divider"><span>Accuracy</span><span>${acc}%</span></div>
+                <div class="row"><span>Balanced accuracy</span><span>${balAcc}%</span></div>
+                <div class="row"><span>d-prime</span><span>${dp.toFixed(2)}</span></div>
+                <div class="row"><span>Mean RT</span><span>${meanRt} s</span></div>
+                <div class="row divider"><span>Hits</span><span>${this.hits} / ${matchTotal} (${hitRate}%)</span></div>
+                <div class="row"><span>Correct rejects</span><span>${this.correctRejects} / ${nonMatchTotal} (${crRate}%)</span></div>
+                <div class="row"><span>Misses</span><span>${this.misses}</span></div>
+                <div class="row"><span>False alarms</span><span>${this.falseAlarms}</span></div>
+                <div class="row"><span>Timeouts</span><span>${this.timeouts}</span></div>
+                ${modeBreakdown ? '<div class="row divider"><span>Per Mode</span><span></span></div>' + modeBreakdown : ''}
+                ${patternBreakdown ? '<div class="row divider"><span>Cognitive Interference</span><span></span></div>' + patternBreakdown : ''}
+            `;
+            document.getElementById('summary-title').textContent = "SESSION COMPLETE";
+            document.getElementById('summary-body').innerHTML = body;
+            this.openModal('summary');
+
+            try {
+                const log = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                log.push({
+                    at: new Date().toISOString(),
+                    mode: document.getElementById('logic-mode').value,
+                    nStart: parseInt(document.getElementById('n-slider').value),
+                    nEnd: this.currentN,
+                    minutes: parseFloat(elapsedMin),
+                    shown: this.totalShown, scored: this.totalScored,
+                    score: this.score, accuracy: acc, balAcc, dprime: +dp.toFixed(2),
+                    hits: this.hits, misses: this.misses,
+                    fa: this.falseAlarms, cr: this.correctRejects,
+                    timeouts: this.timeouts, meanRt: this.rtSamples.length ? +meanRt : null
+                });
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(log.slice(-200)));
+            } catch(_) {}
+
+            this.drawDprimeChart();
+        }
+
+        showHistory() {
+            let log = [];
+            try { log = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(_) {}
+            if (!log.length) {
+                document.getElementById('summary-title').textContent = "NO HISTORY";
+                document.getElementById('summary-body').innerHTML = '<div class="row"><span>No sessions recorded yet.</span><span></span></div>';
+                this.openModal('summary');
+                this.drawDprimeChart();
+                return;
+            }
+            const rows = log.slice().reverse().slice(0, 25).map(s => {
+                const d = new Date(s.at);
+                const date = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                const nStr = s.nStart === s.nEnd ? `N${s.nStart}` : `N${s.nStart}→${s.nEnd}`;
+                const score = (s.balAcc != null ? s.balAcc : s.accuracy) + '%';
+                const rec = s.recovered ? ' ⚠️' : '';
+                return `<div class="row"><span>${date} · M${s.mode} ${nStr}${rec}</span><span>${score} · d'${(s.dprime ?? 0).toFixed(2)}</span></div>`;
+            }).join('');
+            document.getElementById('summary-title').textContent = "RECENT SESSIONS";
+            document.getElementById('summary-body').innerHTML = rows;
+            this.openModal('summary');
+            this.drawDprimeChart();
+        }
+
+        drawDprimeChart() {
+            const canvas = document.getElementById('dprime-chart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const W = canvas.width, H = canvas.height;
+            ctx.clearRect(0, 0, W, H);
+
+            let log = [];
+            try { log = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(_) {}
+            const points = log.slice(-30).map(s => s.dprime || 0);
+            if (points.length < 2) {
+                ctx.fillStyle = '#333';
+                ctx.font = '11px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Need ≥2 sessions for chart', W/2, H/2);
+                return;
+            }
+            const max = Math.max(2, Math.max(...points) * 1.1);
+            const min = Math.min(0, Math.min(...points));
+            const range = max - min || 1;
+
+            // Reference line at d'=1
+            ctx.strokeStyle = '#222';
+            ctx.beginPath();
+            const yRef = H - ((1 - min) / range) * H;
+            ctx.moveTo(0, yRef); ctx.lineTo(W, yRef);
+            ctx.stroke();
+
+            // Line
+            ctx.strokeStyle = '#bf953f';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            points.forEach((p, i) => {
+                const x = (i / (points.length - 1)) * (W - 10) + 5;
+                const y = H - ((p - min) / range) * (H - 10) - 5;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+
+            // Dots
+            ctx.fillStyle = '#ffd700';
+            points.forEach((p, i) => {
+                const x = (i / (points.length - 1)) * (W - 10) + 5;
+                const y = H - ((p - min) / range) * (H - 10) - 5;
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Labels
+            ctx.fillStyle = '#555';
+            ctx.font = '10px monospace';
+            ctx.textAlign = 'left';
+            ctx.fillText(max.toFixed(1), 2, 12);
+            ctx.fillText(min.toFixed(1), 2, H - 2);
+            ctx.textAlign = 'right';
+            ctx.fillText("d' last " + points.length, W - 2, 12);
+        }
+
+        exportCSV() {
+            let log = [];
+            try { log = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(_) {}
+            if (!log.length) {
+                alert("No history to export.");
+                return;
+            }
+            const headers = ['date','mode','nStart','nEnd','minutes','shown','scored','accuracy','balAcc','dprime','hits','misses','fa','cr','timeouts','meanRt','recovered'];
+            const rows = [headers.join(',')];
+            for (const s of log) {
+                const row = headers.map(h => {
+                    let v;
+                    if (h === 'date') v = s.at || '';
+                    else if (h === 'recovered') v = s.recovered ? '1' : '0';
+                    else v = s[h] != null ? s[h] : '';
+                    return String(v).replace(/,/g, ';');
+                });
+                rows.push(row.join(','));
+            }
+            const csv = rows.join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `imagi-world-history-${new Date().toISOString().slice(0,10)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+        }
+
+        computeDprime() {
+            const matchN = this.hits + this.misses;
+            const nonN = this.falseAlarms + this.correctRejects;
+            if (matchN === 0 || nonN === 0) return 0;
+            const hr = (this.hits + 0.5) / (matchN + 1);
+            const fr = (this.falseAlarms + 0.5) / (nonN + 1);
+            return normInv(hr) - normInv(fr);
+        }
+
+        maybeAdaptN() {
+            if (!document.getElementById('adaptive').checked) return;
+            if (this.recentWindow.length < 20) return;
+            const acc = this.recentWindow.reduce((a,b)=>a+b,0) / this.recentWindow.length;
+            const maxN = parseInt(document.getElementById('n-slider').max);
+            const nValEl = document.getElementById('n-val');
+            if (acc >= 0.85 && this.currentN < maxN) {
+                this.currentN++;
+                this.recentWindow = [];
+                nValEl.textContent = this.currentN;
+                nValEl.classList.remove('n-flash-up','n-flash-down');
+                void nValEl.offsetWidth;
+                nValEl.classList.add('n-flash-up');
+                this.flashFeedbackMessage(`N → ${this.currentN}`, '#2ecc71');
+            } else if (acc < 0.55 && this.currentN > 1) {
+                this.currentN--;
+                this.recentWindow = [];
+                nValEl.textContent = this.currentN;
+                nValEl.classList.remove('n-flash-up','n-flash-down');
+                void nValEl.offsetWidth;
+                nValEl.classList.add('n-flash-down');
+                this.flashFeedbackMessage(`N → ${this.currentN}`, '#e94560');
+            }
+        }
+
+        flashFeedbackMessage(text, color) {
+            const fb = document.getElementById('feedback');
+            const prevText = fb.textContent;
+            const prevColor = fb.style.color;
+            fb.textContent = text;
+            fb.style.color = color;
+            setTimeout(() => {
+                if (fb.textContent === text) {
+                    fb.textContent = prevText;
+                    fb.style.color = prevColor;
+                }
+            }, 1500);
+        }
+
+        // ===== Main pulse loop =====
+        async pulse() {
+            if (!this.running) return;
+            await this.waitWhilePaused();
+            if (!this.running) return;
+            if (Date.now() > this.endTime) { this.stop(true); return; }
+
+            const myEpoch = this.epoch;
+            const mode = document.getElementById('logic-mode').value;
+            const n = document.getElementById('adaptive').checked
+                ? this.currentN
+                : parseInt(document.getElementById('n-slider').value);
+            const matchProb = parseInt(document.getElementById('prob-slider').value) / 100;
+
+            const haveNBack = this.history.length >= n;
+            const wantMatch = haveNBack && (this.rng.next() < matchProb);
+            const nBackObj = haveNBack ? this.history[this.history.length - n] : null;
+            const nBackSig = nBackObj ? this.matchSignature(nBackObj.key, mode) : null;
+            const prevTrialForKey = this.history.length > 0 ? this.history[this.history.length - 1] : null;
+            const prevKeyForConflict = prevTrialForKey ? prevTrialForKey.key : null;
+            const ipctForKey = this.getInterferencePct();
+
+            let key;
+            if (wantMatch) {
+                // Use varied match-key generation to break the "same-direction-texture
+                // = match" leak (critical at N=1 where prev trial IS the n-back).
+                key = this.generateVariedMatchKey(mode, nBackObj.key, nBackSig, prevKeyForConflict, n === 1);
+            } else {
+                // Non-match path: bias direction choice toward high logical/directional
+                // conflict with the previous trial (i-1), modulated by interference slider.
+                key = this.generateConflictingNonMatchKey(mode, nBackSig, prevKeyForConflict, ipctForKey, n);
+                // Safety: avoid trivial exact-key repeat of prior trial
+                if (this.history.length > 0 && key === this.history[this.history.length - 1].key) {
+                    const alt = this.generateConflictingNonMatchKey(mode, nBackSig, prevKeyForConflict, ipctForKey, n);
+                    if (alt !== key) key = alt;
+                }
+            }
+
+            // Gather prior symbols for cognitive-interference rendering
+            const prevTrial = this.history.length > 0 ? this.history[this.history.length - 1] : null;
+            const prevSymbols = prevTrial ? prevTrial.syms : null;
+            const nBackSymbols = nBackObj ? nBackObj.syms : null;
+
+            const rendered = this.renderText(key, prevSymbols, nBackSymbols, this.history, n);
+            const text = rendered.text;
+            const trial = { text, key, n, mode, syms: rendered.syms, pattern: rendered.pattern };
+            const correctIsMatch = haveNBack && (this.matchSignature(key, mode) === nBackSig);
+            const isScored = haveNBack;
+
+            // Track interference pattern statistics
+            if (!this.patternCounts) this.patternCounts = {};
+            this.patternCounts[rendered.pattern] = (this.patternCounts[rendered.pattern] || 0) + 1;
+
+            // Track directional conflict score against the previous trial
+            if (!this.dirConflictTotal) { this.dirConflictTotal = 0; this.dirConflictTrials = 0; this.dirConflictMax = 0; }
+            if (prevTrialForKey) {
+                const dirScore = this.directionalConflictScore(key, prevTrialForKey.key, mode);
+                this.dirConflictTotal += dirScore;
+                this.dirConflictTrials++;
+                if (dirScore > this.dirConflictMax) this.dirConflictMax = dirScore;
+            }
+
+            this.history.push(trial);
+            this.totalShown++;
+            if (this.history.length > 50) this.history.shift();
+
+            this.answered = true;
+            this.responsePhase = false;
+            this.currentTrial = trial;
+            this.currentCorrectIsMatch = correctIsMatch;
+            this.currentIsScored = isScored;
+
+            const premiseEl = document.getElementById('premise-display');
+            const hideTextEl = document.getElementById('hide-text');
+            const audioOnly = document.getElementById('audio-only').checked;
+            const hideText = hideTextEl.checked && !hideTextEl.disabled;
+
+            premiseEl.textContent = text;
+            premiseEl.classList.toggle('hidden-mode', audioOnly);
+            premiseEl.classList.toggle('muted', !audioOnly && hideText);
+            this.fitPremiseText();
+
+            const bar = document.getElementById('timer-bar');
+            bar.style.transition = 'none';
+            bar.style.width = '0%';
+            void bar.offsetWidth;
+
+            // Click + delay before speech
+            if (!document.getElementById('mute-click').checked) {
+                this.playClick();
+                await this.sleep(200);
+                if (myEpoch !== this.epoch || !this.running) return;
+                await this.waitWhilePaused();
+                if (myEpoch !== this.epoch || !this.running) return;
+            }
+
+            // PHANTOM PROTECTION: if audio-only AND no synth, show pulse so user knows trial is alive
+            const noSpeech = !this.synth || (audioOnly && hideText);
+            const showPulse = audioOnly && (document.getElementById('mute-click').checked || !this.synth);
+            if (showPulse) {
+                premiseEl.innerHTML = '<span class="trial-pulse" aria-label="Trial active"></span>';
+                premiseEl.classList.remove('hidden-mode'); // ensure pulse is visible
+            }
+
+            // Speech may resolve early on pause — handle it
+            await this.speak(text);
+            // Drain any pause that occurred during speech
+            while (this.paused && this.running && myEpoch === this.epoch) {
+                await this.waitWhilePaused();
+                if (myEpoch !== this.epoch || !this.running) return;
+                // Replay if pause interrupted speech
+                await this.speak(text);
+            }
+            if (myEpoch !== this.epoch || !this.running) return;
+
+            // Clear phantom pulse if shown
+            if (showPulse) {
+                premiseEl.textContent = audioOnly ? text : text;
+                premiseEl.classList.toggle('hidden-mode', audioOnly);
+            }
+
+            if (!audioOnly) premiseEl.classList.remove('muted');
+
+            // Response phase begins
+            this.answered = false;
+            this.responsePhase = true;
+            this.responseStart = performance.now();
+
+            document.getElementById('match-btn').disabled = false;
+            document.getElementById('no-match-btn').disabled = false;
+
+            const spt = parseFloat(document.getElementById('spt-slider').value);
+            const sptMs = spt * 1000;
+            this.thinkTotal = sptMs;
+            this.thinkStart = Date.now();
+            this.thinkDeadline = Date.now() + sptMs;
+            this.thinkRemaining = sptMs;
+
+            bar.style.transition = `width ${spt}s linear`;
+            void bar.offsetWidth;
+            bar.style.width = '100%';
+
+            this.timer = setTimeout(() => {
+                if (!this.answered && myEpoch === this.epoch && !this.paused) this.respond(null);
+            }, sptMs);
+        }
+
+        playClick() {
+            if (!this.audioCtx) return;
+            try {
+                // Mobile: ensure context is running before playing
+                if (this.audioCtx.state === 'suspended') {
+                    this.audioCtx.resume().catch(() => {});
+                }
+                const osc = this.audioCtx.createOscillator();
+                const g = this.audioCtx.createGain();
+                const t = this.audioCtx.currentTime;
+                osc.frequency.setValueAtTime(220, t);
+                osc.frequency.exponentialRampToValueAtTime(120, t + 0.1);
+                g.gain.setValueAtTime(0.0001, t);
+                g.gain.exponentialRampToValueAtTime(0.06, t + 0.015);
+                g.gain.exponentialRampToValueAtTime(0.0001, t + 0.13);
+                osc.connect(g); g.connect(this.audioCtx.destination);
+                osc.start(t); osc.stop(t + 0.15);
+            } catch(_) {}
+        }
+
+        recordModeStats(mode, scored, correct, isMatch, userMatch) {
+            if (!this.modeStats[mode]) this.modeStats[mode] = { scored: 0, correct: 0, hits: 0, misses: 0, fa: 0, cr: 0 };
+            const ms = this.modeStats[mode];
+            if (scored) {
+                ms.scored++;
+                if (correct) {
+                    ms.correct++;
+                    if (isMatch) ms.hits++; else ms.cr++;
+                } else {
+                    if (isMatch) ms.misses++; else ms.fa++;
+                }
+            }
+        }
+
+        respond(val) {
+            if (this.answered || !this.running || this.paused) return;
+            this.answered = true;
+            this.responsePhase = false;
+            clearTimeout(this.timer);
+
+            document.getElementById('match-btn').disabled = true;
+            document.getElementById('no-match-btn').disabled = true;
+            const bar = document.getElementById('timer-bar');
+            bar.style.transition = 'none';
+            bar.style.width = '0%';
+
+            const fb = document.getElementById('feedback');
+            const rt = (performance.now() - this.responseStart) / 1000;
+            const trialMode = (this.currentTrial && this.currentTrial.mode) || '0';
+            const practiceMode = document.getElementById('practice-mode').checked;
+
+            if (practiceMode) {
+                // Practice mode: NO scoring, NO feedback display, NO stats — user is
+                // just listening and reasoning mentally. The trial still advances
+                // and totalShown still increments (already done in pulse()).
+                fb.textContent = '';
+                this.haptic(15); // light tap so user knows their press registered
+            } else if (val === null) {
+                this.timeouts++;
+                fb.textContent = "TIMEOUT";
+                fb.style.color = "var(--pink)";
+                this.haptic([60, 40, 60]);
+                if (this.currentIsScored) {
+                    this.totalScored++;
+                    // Implicit "no_match"
+                    const userMatch = false;
+                    const correct = (userMatch === this.currentCorrectIsMatch);
+                    if (this.currentCorrectIsMatch) this.misses++;
+                    else { this.correctRejects++; this.score++; }
+                    this.recentWindow.push(correct ? 1 : 0);
+                    if (this.recentWindow.length > 20) this.recentWindow.shift();
+                    this.recordModeStats(trialMode, true, correct, this.currentCorrectIsMatch, userMatch);
+                }
+            } else if (this.currentIsScored) {
+                this.totalScored++;
+                this.rtSamples.push(rt);
+                if (this.rtSamples.length > 500) this.rtSamples.shift();
+
+                const correct = (val === this.currentCorrectIsMatch);
+                if (correct) {
+                    this.score++;
+                    if (this.currentCorrectIsMatch) this.hits++; else this.correctRejects++;
+                    fb.textContent = `SYNC_OK · ${rt.toFixed(2)}s`;
+                    fb.style.color = "var(--green)";
+                    this.haptic(30);
+                } else {
+                    if (this.currentCorrectIsMatch) this.misses++; else this.falseAlarms++;
+                    fb.textContent = `SYNC_FAIL · ${rt.toFixed(2)}s`;
+                    fb.style.color = "var(--red)";
+                    this.haptic([40, 30, 40]);
+                }
+                this.recentWindow.push(correct ? 1 : 0);
+                if (this.recentWindow.length > 20) this.recentWindow.shift();
+                this.recordModeStats(trialMode, true, correct, this.currentCorrectIsMatch, val);
+            } else {
+                fb.textContent = "WARM_UP";
+                fb.style.color = "#888";
+            }
+
+            this.updateUI();
+            this.maybeAdaptN();
+
+            const inter = 900 + Math.floor(this.rng.next() * 400);
+            this.feedbackTimer = setTimeout(() => {
+                if (!this.running) return;
+                if (fb.textContent.startsWith('SYNC') || fb.textContent === 'TIMEOUT' || fb.textContent === 'WARM_UP') {
+                    fb.textContent = "";
+                }
+                this.pulse();
+            }, inter);
+        }
+
+        updateUI() {
+            document.getElementById('trial-count').textContent = this.totalShown;
+            document.getElementById('hits').textContent = this.hits;
+            document.getElementById('dprime').textContent = this.computeDprime().toFixed(2);
+
+            // Use BALANCED accuracy in the main display (more honest than raw)
+            const matchTotal = this.hits + this.misses;
+            const nonMatchTotal = this.falseAlarms + this.correctRejects;
+            if (matchTotal > 0 && nonMatchTotal > 0) {
+                const hr = this.hits / matchTotal;
+                const cr = this.correctRejects / nonMatchTotal;
+                document.getElementById('accuracy').textContent = Math.round((hr + cr) * 50) + "%";
+            } else if (this.totalScored > 0) {
+                document.getElementById('accuracy').textContent = Math.round((this.score / this.totalScored) * 100) + "%";
+            } else {
+                document.getElementById('accuracy').textContent = "0%";
+            }
+        }
+    }
+
+    const engine = new NeuralEngine();
+    engine.init();
+    window.__imagi = engine;
+</script>
+</body>
+</html>
