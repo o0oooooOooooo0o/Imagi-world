@@ -2037,13 +2037,9 @@
 
         // ===== Start / Pause / Stop =====
         async start() {
-            // DIAGNOSTIC: report entry. If the button is clicked but this text
-            // never appears, the handler is not firing. If it appears but the
-            // game doesn't progress, start() is stopping after this point.
-            try { this.$('premise-display').textContent = 'STARTING…'; } catch(_) {}
-            // Hardened re-entrancy guard
+            // Hardened re-entrancy guard: if a session is already running or in
+            // the middle of starting, silently ignore the duplicate call.
             if (this.running || this.starting) {
-                try { this.$('premise-display').textContent = 'BLOCKED: running=' + this.running + ' starting=' + this.starting; } catch(_) {}
                 return;
             }
             this.starting = true;
