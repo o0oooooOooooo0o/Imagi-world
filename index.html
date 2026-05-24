@@ -2118,14 +2118,66 @@
                 const D = `${REL[p[1][0]]} and ${REL[p[1][1]]}`;
                 // Randomize which pair is stated first (the homology is symmetric),
                 // so the user can't pre-decide before hearing both pairs.
-                let textOut, symsOut;
+                let symsOut;
                 if (rng.next() < 0.5) {
-                    textOut = `${s1} is ${D} of ${o1}, as ${s2} is ${D} of ${o2}`;
                     symsOut = [s1, o1, s2, o2];
                 } else {
-                    textOut = `${s2} is ${D} of ${o2}, as ${s1} is ${D} of ${o1}`;
                     symsOut = [s2, o2, s1, o1];
                 }
+                // ===== Mode 3 interference-scaled carry-forward =====
+                // Mode 3 builds FOUR letters; the interference engine only shapes
+                // the two subjects, and the two objects were drawn fresh — so even
+                // at max interference very few letters carried over from the prior
+                // trial, leaving the slider with almost no effect (the same
+                // "barely any interference" failure that Mode 6 had). We fix it
+                // here, respecting Mode 3's 4-letter homology dimensions: with a
+                // probability that scales with the interference slider, pull ONE
+                // letter from the previous trial into ONE of the four slots, so
+                // the user must hold a recently-heard letter in a NEW relational
+                // role (legitimate interference — not an inversion or repeat,
+                // which the downstream guard still forbids). The compound relation
+                // and pair structure are untouched, so the homology task itself is
+                // unchanged; only the letter overlap with the prior trial rises
+                // with the slider, matching the other modes.
+                if (prevSymbols && prevSymbols.length) {
+                    const ipctLocal = this.getInterferencePct();
+                    // Interference fraction → carry probability. Mirrors the
+                    // overall interference scaling used elsewhere; capped so ~30%
+                    // of trials stay fully fresh even at 100% (prevents a
+                    // deterministic chain the user could game).
+                    const carryProb = Math.min(0.70, (ipctLocal / 100) * 0.70);
+                    if (rng.next() < carryProb) {
+                        const prevLetters = prevSymbols.filter(Boolean);
+                        if (prevLetters.length) {
+                            const carried = rng.choice(prevLetters);
+                            // Choose a slot to receive the carried letter. Replace
+                            // that slot, then repair any duplicate so all four
+                            // letters stay distinct.
+                            const slot = Math.floor(rng.next() * 4);
+                            const cand = symsOut.slice();
+                            cand[slot] = carried;
+                            // Repair duplicates: any OTHER slot equal to `carried`
+                            // (or to each other) gets redrawn fresh & distinct.
+                            const seen = new Set();
+                            for (let i = 0; i < 4; i++) {
+                                if (i === slot) { seen.add(cand[i]); continue; }
+                                if (seen.has(cand[i])) {
+                                    let v, a = 0;
+                                    do { v = rng.choice(SYMBOLS); a++; }
+                                    while ((seen.has(v) || v === carried) && a < 60);
+                                    cand[i] = v;
+                                }
+                                seen.add(cand[i]);
+                            }
+                            symsOut = cand;
+                            // Tag this trial so the live guard knows the carry was
+                            // DELIBERATE interference and should be preserved (not
+                            // blindly redrawn) if a pair-clash forces a redraw.
+                            result = { ...result, pattern: 'M2_CARRY' };
+                        }
+                    }
+                }
+                const textOut = `${symsOut[0]} is ${D} of ${symsOut[1]}, as ${symsOut[2]} is ${D} of ${symsOut[3]}`;
                 return { text: textOut, syms: symsOut, pattern: result.pattern };
             }
             else if (m === 'M3') {
@@ -2965,6 +3017,36 @@
                                 else { s2 = keep; s1 = drawFresh([s2]); }
                                 const s3 = drawFresh([s1, s2]);
                                 const cand = [s1, s2, s3];
+                                if (!isClash(cand)) fixedSyms = cand;
+                            }
+                        }
+                    }
+                    // Mode 3 carry preservation: Mode 3 builds FOUR letters, and
+                    // its render deliberately carries ONE letter from the prior
+                    // trial (interference scaled by the slider). A blind fresh
+                    // redraw would discard that carry, flattening the slider's
+                    // effect. So on a clash we KEEP one carried letter (the one
+                    // shared with the previous trial — legitimate single-letter
+                    // interference, never an inversion) and redraw the other three
+                    // to clear the offending pair-reuse, keeping all four distinct.
+                    if (mode === '2' && rendered.pattern === 'M2_CARRY' && !fixedSyms && prevSymbols && prevSymbols.length) {
+                        const prevSet = new Set(prevSymbols.filter(Boolean));
+                        const carriedIdx = rendered.syms.findIndex(s => prevSet.has(s));
+                        if (carriedIdx !== -1) {
+                            const keep = rendered.syms[carriedIdx];
+                            const drawFresh = (excl) => {
+                                let v, a = 0;
+                                do { v = this.rng.choice(SYMBOLS); a++; }
+                                while (excl.includes(v) && a < 80);
+                                return v;
+                            };
+                            for (let t = 0; t < 80 && !fixedSyms; t++) {
+                                const cand = [null, null, null, null];
+                                cand[carriedIdx] = keep;
+                                for (let i = 0; i < 4; i++) {
+                                    if (i === carriedIdx) continue;
+                                    cand[i] = drawFresh(cand.filter(Boolean));
+                                }
                                 if (!isClash(cand)) fixedSyms = cand;
                             }
                         }
