@@ -134,7 +134,8 @@
     button:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
 
     #start-btn { flex: 2; background: linear-gradient(135deg, var(--yellow), #b38728); color: #000; min-width: 140px; }
-    #pause-btn { flex: 1; background: #161616; color: var(--yellow); border: 1px solid #302810; min-width: 80px; }
+    #pause-btn { flex: 1; background: #161616; color: var(--yellow); border: 1px solid #302810; min-width: 80px; transition: background 0.12s, color 0.12s; }
+    #pause-btn:active, #pause-btn.flash { background: var(--yellow); color: #000; }
     #stop-btn { flex: 1; background: #121212; color: var(--pink); border: 1px solid #301010; min-width: 80px; }
     button:disabled { opacity: 0.15; pointer-events: none; }
 
@@ -753,17 +754,39 @@
 
             // Keyboard
             document.addEventListener('keydown', (e) => {
-                if (!$('keyboard').checked) return;
                 if (e.repeat) return;
+                // Never intercept keys while typing in a form control or when the
+                // confirm dialog is open.
                 if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA')) return;
-                // Don't interfere with confirm dialog
                 if ($('confirm-overlay').classList.contains('show')) return;
                 const k = e.key.toLowerCase();
+
+                // ===== Global controls — ALWAYS active, independent of the
+                // "Keyboard (J/K)" toggle. The J/K toggle only opts in the
+                // match/no-match answer keys; pause/stop/start are core controls
+                // a user expects to work from the keyboard at any time. =====
+                if (k === 'p') {
+                    // P naturally activates the Pause button (pause/resume).
+                    e.preventDefault();
+                    if (this.running) { this.flashBtn('pause-btn'); this.togglePause(); }
+                    return;
+                }
+                if (k === 'escape') {
+                    e.preventDefault();
+                    if (this.running) this.stopRequested();
+                    return;
+                }
+                if (k === ' ') {
+                    e.preventDefault();
+                    if (!this.running && !this.starting) this.start();
+                    return;
+                }
+
+                // ===== Match-response keys — opt-in via the "Keyboard (J/K)"
+                // checkbox, since they're an alternative to tapping the buttons. =====
+                if (!$('keyboard').checked) return;
                 if (k === 'j' || k === 'f') { this.flashBtn('match-btn'); this.respond(true); }
                 else if (k === 'k' || k === 'd') { this.flashBtn('no-match-btn'); this.respond(false); }
-                else if (k === 'p') { e.preventDefault(); if (this.running) this.togglePause(); }
-                else if (k === 'escape') { e.preventDefault(); if (this.running) this.stopRequested(); }
-                else if (k === ' ') { e.preventDefault(); if (!this.running && !this.starting) this.start(); }
             });
 
             $('paused-overlay').onclick = () => { if (this.paused) this.togglePause(); };
