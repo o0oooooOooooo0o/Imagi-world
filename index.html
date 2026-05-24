@@ -140,12 +140,16 @@
 
     .game-area {
       background: #040406; padding: 30px; border-radius: 30px;
-      text-align: center; border: 1px solid #111; min-height: 580px;
+      text-align: center; border: 1px solid #111; min-height: 470px;
       display: flex; flex-direction: column; justify-content: space-between;
       box-shadow: inset 0 0 60px rgba(0,0,0,0.9);
     }
 
     #countdown-box { font-size: 7rem; font-weight: 900; color: var(--yellow); height: 140px; display: flex; align-items: center; justify-content: center; text-shadow: 0 0 35px rgba(255, 215, 0, 0.7); }
+    /* When empty (i.e. during actual play, not the pre-session 3-2-1 countdown),
+       collapse the box so it reserves no vertical space — removes the gap at the
+       top of the game area. */
+    #countdown-box:empty { height: 0; }
 
     .premise-display {
       color: #fff; margin: 10px 0; font-style: italic;
