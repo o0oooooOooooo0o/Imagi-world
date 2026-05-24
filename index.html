@@ -1966,6 +1966,65 @@
             const ipct = this.getInterferencePct();
             let result = this.pickSymbolsWithInterference(slotCount, prevSymbols, nBackSymbols, ipct, modeNum, history, n);
 
+            // ===== Mode 6 (Recursive Invention) structural recall =====
+            // The defining mechanism of Mode 6 is that the invention constructed
+            // on a PRIOR trial returns as an OPERAND on a later trial, forcing the
+            // user to recall the relation they forged and operate on top of it.
+            // This is NOT an interference option that competes for selection — it
+            // is the mode's core structure, so it fires on a high, fixed fraction
+            // of trials regardless of the interference slider. We pull the most
+            // recent invention (prev trial's s3) — or, with some probability, an
+            // invention from a few trials back, scaled toward the chosen n-back
+            // distance so the recalled item lands in the n-back window — into an
+            // operand slot (subject or bridge). The invention slot (s3) is always
+            // a fresh, distinct letter so a NEW invention is minted each trial.
+            // Changing which letters fill the operand/invention slots never alters
+            // the n-back MATCH status (which depends only on the key's composite
+            // class), so this is safe for scoring.
+            if (m === 'M5' && history && history.length >= 1) {
+                // Build the list of recent invention letters (s3 of prior trials),
+                // most-recent first, that are still "live" for recall.
+                const recentInventions = [];
+                for (let i = history.length - 1; i >= 0 && recentInventions.length < 6; i--) {
+                    const h = history[i];
+                    if (h && h.syms && h.syms[2]) recentInventions.push(h.syms[2]);
+                }
+                // Fire recall on ~70% of trials (interference-independent). This
+                // makes the recursion the norm, not the exception, while leaving
+                // ~30% of trials minting a wholly fresh construction so the chain
+                // does not become a fully deterministic loop the user can game.
+                if (recentInventions.length > 0 && rng.next() < 0.70) {
+                    // Prefer the immediately-prior invention (n-back=1 recall), but
+                    // sometimes reach to the invention at the chosen n-back depth so
+                    // recall aligns with the n-back target at higher N.
+                    let recalled;
+                    if (n >= 2 && recentInventions.length >= n && rng.next() < 0.5) {
+                        recalled = recentInventions[n - 1]; // invention from n trials back
+                    } else {
+                        recalled = recentInventions[0];     // immediately-prior invention
+                    }
+                    const drawFresh = (excl) => {
+                        let v, a = 0;
+                        do { v = rng.choice(SYMBOLS); a++; }
+                        while (excl.includes(v) && a < 60);
+                        return v;
+                    };
+                    // Place the recalled invention into subject (s1) or bridge (s2),
+                    // 50/50, and fill the rest with fresh distinct letters. The new
+                    // invention (s3) is always fresh and distinct from both operands.
+                    let s1, s2;
+                    if (rng.next() < 0.5) {
+                        s1 = recalled;
+                        s2 = drawFresh([s1]);
+                    } else {
+                        s2 = recalled;
+                        s1 = drawFresh([s2]);
+                    }
+                    const s3 = drawFresh([s1, s2]);
+                    result = { syms: [s1, s2, s3], pattern: 'M5_INVENTION_RECALL' };
+                }
+            }
+
             // ===== Tautology filter (windowed) =====
             // A semantic tautology is any premise that conveys the SAME spatial
             // information as a RECENT premise — either a verbatim repeat or an
@@ -2876,6 +2935,40 @@
 
                 if ((historyCanon.size > 0 || recentPairs.size > 0) && isClash(rendered.syms)) {
                     let fixedSyms = null;
+                    // Mode 6 recall preservation: if this trial is an invention
+                    // recall (the prior invention is deliberately an operand), the
+                    // redraw must KEEP the recalled letter in its slot and only
+                    // swap its partner(s). Otherwise a clash redraw would silently
+                    // destroy the recursion that defines Mode 6. We identify the
+                    // recalled letter as the operand (s1 or s2) that equals a
+                    // recent invention; we hold it fixed and redraw the others.
+                    if (mode === '5' && rendered.pattern === 'M5_INVENTION_RECALL') {
+                        const recentInv = new Set();
+                        for (let i = this.history.length - 1, c = 0; i >= 0 && c < 6; i--, c++) {
+                            const h = this.history[i];
+                            if (h && h.syms && h.syms[2]) recentInv.add(h.syms[2]);
+                        }
+                        const cur = rendered.syms;
+                        // Which operand slot (0 or 1) carries the recalled invention?
+                        const recallSlot = recentInv.has(cur[0]) ? 0 : (recentInv.has(cur[1]) ? 1 : -1);
+                        if (recallSlot !== -1) {
+                            const keep = cur[recallSlot];
+                            const drawFresh = (excl) => {
+                                let v, a = 0;
+                                do { v = this.rng.choice(SYMBOLS); a++; }
+                                while (excl.includes(v) && a < 80);
+                                return v;
+                            };
+                            for (let t = 0; t < 60 && !fixedSyms; t++) {
+                                let s1, s2;
+                                if (recallSlot === 0) { s1 = keep; s2 = drawFresh([s1]); }
+                                else { s2 = keep; s1 = drawFresh([s2]); }
+                                const s3 = drawFresh([s1, s2]);
+                                const cand = [s1, s2, s3];
+                                if (!isClash(cand)) fixedSyms = cand;
+                            }
+                        }
+                    }
                     // Try fresh redraws first (keeps natural letter distribution).
                     for (let t = 0; t < 60 && !fixedSyms; t++) {
                         const cand = this.pickFreshSymbols(slotCount, prevSymbols).syms;
