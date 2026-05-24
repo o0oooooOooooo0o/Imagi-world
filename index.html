@@ -272,6 +272,7 @@
               <option value="2">Mode 3: Analogical Homology</option>
               <option value="3">Mode 4: Algebraic Relational Symmetry</option>
               <option value="4">Mode 5: Transitive Composition</option>
+              <option value="5">Mode 6: Recursive Invention</option>
           </select>
       </div>
       <div class="control-group">
@@ -375,6 +376,7 @@
         <p><strong>Mode 3 (Analogical Homology):</strong> True structural correspondence across four letters in two pairs. Form: "A is North and East of B, as C is North and East of D" — both pairs related by the same <em>compound</em> two-dimensional relation (a corner direction: NE, NW, SE, or SW). The relation R is the load-bearing object: forge A and B into distant domains, extract the <em>relationship</em> between them, hold it, then forge C and D across another domain gap and verify the same relationship lands. Because every relation carries both a vertical (North/South) and a horizontal (East/West) component, every trial exercises both axes — and the four relation classes are explored with equal weight. Match across trials is on the compound relation class: two trials correspond iff the same 2D relation holds across both their pairs. You cannot shortcut by tracking a single-axis token — you must extract and compare the full relation each time.</p>
         <p><strong>Mode 4 (Algebraic Symmetry):</strong> Same "ratio of change" — same transformation type (Inversion vs Rotation) and same axis (Vertical/Horizontal/mixed) on both pairs. No identity (D→D) operators are ever generated; every premise describes a real shift.</p>
         <p><strong>Mode 5 (Transitive Composition):</strong> Pure chain composition. Form: "D1 to D2 of X, D2 to D3 of Y, so D1 to D3 of X." Clauses 1+2 chain through the shared midpoint direction D2 — X carries the first step, Y bridges. The "so" binder names the composite the user has just constructed by composing the two transformations. Every trial is a real chain; there are no rejection trials and no false premises. Two trials match in n-back iff their chains compose to the same abstract operator class (vertical inversion, horizontal inversion, clockwise rotation, or counter-clockwise rotation) — recursive compression in action. A NO_MATCH response is counter-isomorphism detection: the user has judged that two chains do not share the same composite class.</p>
+        <p><strong>Mode 6 (Recursive Invention):</strong> The deepest mode — composition where the composite is <em>reified as a new entity you must construct and carry forward</em>. Form: "D1 to D2 of X, D2 to D3 of Y, so invention of Z." Unlike Mode 5, the final clause does <strong>not</strong> state the composite's directions — it names only "invention of Z." You must perform the composition yourself to know what the invention <em>is</em>; nothing on the surface reveals it. Z becomes the carrier of that constructed relation — the composite (D1→D3) made into an object. Crucially, the invention persists: across later trials Z reappears as an <em>operand</em> ("D1 to D2 of Z…"), forcing you to recall the relation you forged and apply a new transformation on top of it. This is recursive relational embedding — a relation reified as an object that then feeds a new relation — spread across trials so no single trial overloads working memory. Two Mode 6 trials match in n-back iff their inventions share the same relational identity (the same composite operator class). This is the Da Vinci method at its purest: the invention is the synthesized third thing born from the convergence of two transformations, and you must hold what you created to reason forward. Expect this mode to be hard; the skill being trained is chunking a whole composition into a single reusable entity in real time.</p>
         <h3>Tips</h3>
         <p>The letters (B, C, D, etc.) are doing three jobs at once, not one. First, they're your <strong>anchor points</strong> for the Da Vinci method — where you bind a domain and build the cross-domain operator. Second, they're your <strong>recall handles</strong> — when a letter reappears in a later trial, the letter is the cue that pulls back the relational frame you constructed for it the first time. Third, they're <strong>transformation targets</strong> — when interference patterns deliberately re-present a prior letter in a new structural role (subject becomes object, anchor becomes pivot), you have to hold the old binding alongside the new one and decide whether the structure has been preserved, inverted, rotated, or replaced. The letters are not noise and they are not just placeholders for the directional pattern — they are the axis along which your prior relational construction gets re-evaluated.</p>
         <p>Use <strong>Adaptive N</strong> to let the game auto-tune difficulty (the Jaeggi protocol).</p>
@@ -1186,6 +1188,36 @@
                 } while ((d3 === d2 || d3 === d1) && attempts < 30);
                 return `M4-${d1}-${d2}-${d3}`;
             }
+            if (m === 5) {
+                // Mode 6 (Recursive Invention): same composition footprint as
+                // Mode 5, but the composite is REIFIED as a new entity — the
+                // "invention" — bound to a third letter. Surface:
+                //   "D1 to D2 of X, D2 to D3 of Y, so invention of Z"
+                //   - X carries the first step (D1→D2)
+                //   - Y carries the bridge step (D2→D3) — D2 is the shared midpoint
+                //   - Z IS the invention: the entity that stands in the composed
+                //     relation (D1→D3). Z has no independent spatial value; it is
+                //     the composite relation made into an object.
+                // The composite's operator class (XV/XH/CW/CCW — the same
+                // classification Mode 5 uses) defines the invention's relational
+                // identity. Across trials the invention letter Z is carried
+                // forward by the interference engine and re-enters later trials as
+                // an OPERAND, forcing the user to recall what they constructed —
+                // a relation reified as an object that then feeds a new relation.
+                // This is recursive relational embedding spread across trials, so
+                // no single trial exceeds the quaternary binding limit (chunking,
+                // per Halford, is the trained mechanism, not an evasion).
+                // Constraints identical to Mode 5: D1≠D2, D2≠D3, D1≠D3.
+                const d1 = rng.choice(DIRS);
+                const d2 = rng.pick(DIRS, d1);
+                let d3;
+                let attempts = 0;
+                do {
+                    d3 = rng.choice(DIRS);
+                    attempts++;
+                } while ((d3 === d2 || d3 === d1) && attempts < 30);
+                return `M5-${d1}-${d2}-${d3}`;
+            }
             return `M0-${rng.choice(DIRS)}`;
         }
 
@@ -1268,6 +1300,34 @@
                 }
                 return `M4SIG-${atom}`;
             }
+            if (m === 5) {
+                // Mode 6 (Recursive Invention) signature: the relational IDENTITY
+                // of the invention, which is the operator class of the composite
+                // (D1→D3) — the same four-class scheme as Mode 5:
+                //   XV = vertical inversion (N↔S)
+                //   XH = horizontal inversion (E↔W)
+                //   CW = clockwise rotation 90°
+                //   CCW = counter-clockwise rotation 90°
+                // Two Mode 6 trials match in n-back iff their inventions share the
+                // same relational identity — i.e., the user judges whether the
+                // entity they constructed this trial is the same KIND of invention
+                // as the one constructed N trials back. The invention is matchable
+                // only by performing the composition; nothing on the surface
+                // reveals it (the premise says "invention", never the class).
+                const p = key.split('-');
+                const d1 = p[1], d3 = p[3];
+                const opp = { N: 'S', S: 'N', E: 'W', W: 'E' };
+                const cw = { N: 'E', E: 'S', S: 'W', W: 'N' };
+                let atom;
+                if (opp[d1] === d3) {
+                    atom = (d1 === 'N' || d1 === 'S') ? 'XV' : 'XH';
+                } else if (cw[d1] === d3) {
+                    atom = 'CW';
+                } else {
+                    atom = 'CCW';
+                }
+                return `M5SIG-${atom}`;
+            }
             return key;
         }
 
@@ -1333,6 +1393,12 @@
                 score += pairScore(pCand[1], pPrev[1]);
                 score += pairScore(pCand[2], pPrev[2]);
                 score += pairScore(pCand[3], pPrev[3]);
+            } else if (m === 5) {
+                // Mode 6 key: "M5-D1-D2-D3" — 3 directional slots (same chain
+                // structure as Mode 5), pair by position.
+                score += pairScore(pCand[1], pPrev[1]);
+                score += pairScore(pCand[2], pPrev[2]);
+                score += pairScore(pCand[3], pPrev[3]);
             }
             return score;
         }
@@ -1354,6 +1420,7 @@
             if (m === 2) return 6;
             if (m === 3) return 12;
             if (m === 4) return 9;
+            if (m === 5) return 9;
             return 3;
         }
 
@@ -1540,6 +1607,15 @@
             if (m === 3 && hasPrev) {
                 modeSpecific.push(['M3_CROSS_PAIR',  0.34]);
             }
+            if (m === 5 && hasPrev && prevSymbols && prevSymbols.length >= 3) {
+                // Mode 6 recursion: the invention you constructed last trial
+                // (prev s3) returns as an OPERAND this trial, forcing recall of
+                // the construction. Two flavours: invention→subject (carries the
+                // reified composite into the first chain step) and
+                // invention→bridge (into the second). High weight because this
+                // recursive carry-forward IS the mode's defining mechanism.
+                modeSpecific.push(['M5_INVENTION_RECALL', 0.40]);
+            }
 
             // Normalize all interfering pattern weights to sum to 1, then scale by interferingFrac
             const allInterfering = [...corePatterns, ['INTERVENING', interveningWeight], ...modeSpecific]
@@ -1675,6 +1751,23 @@
                     s2 = drawExcept([s1, prevSub]);
                     break;
                 }
+                case 'M5_INVENTION_RECALL': {
+                    // Mode 6 recursion: the previous trial's INVENTION (prevObj2 =
+                    // prev s3) returns as an operand. 50/50 it becomes the new
+                    // subject (s1) or the new bridge (s2). The user must recall the
+                    // composite they constructed and bound to that letter, then
+                    // operate on it — a reified relation feeding a new relation.
+                    // The new invention (s3) is always a fresh, distinct letter.
+                    if (rng.next() < 0.5) {
+                        s1 = prevObj2;
+                        s2 = drawExcept([s1, prevSub, prevObj]);
+                    } else {
+                        s2 = prevObj2;
+                        s1 = drawExcept([s2, prevSub, prevObj]);
+                    }
+                    s3 = drawExcept([s1, s2]);
+                    break;
+                }
                 case 'FRESH':
                 default: {
                     const excl = [prevSub, prevObj, prevObj2].filter(Boolean);
@@ -1689,7 +1782,7 @@
             // Independently of pattern, ~12% of trials at N≥1 force one symbol to
             // match the actual n-back trial's letters — pure familiarity bait that
             // tests precise positional binding. Skipped if pattern already locks both slots.
-            const lockBoth = (pattern === 'INVERSION' || pattern === 'INTERVENING');
+            const lockBoth = (pattern === 'INVERSION' || pattern === 'INTERVENING' || pattern === 'M5_INVENTION_RECALL');
             if (!lockBoth && nBackSymbols && nBackSymbols.length >= 2 && rng.next() < 0.12) {
                 const nBackChoice = rng.choice(nBackSymbols.slice(0, slotCount));
                 if (slotCount === 3) {
@@ -1833,6 +1926,21 @@
                 return `M4|${p[1]}|${p[2]}|${p[3]}|${syms[0]}|${syms[1]}`;
             }
 
+            // ----- Mode 6 (Recursive Invention) -----
+            // "D1 to D2 of X, D2 to D3 of Y, so invention of Z"
+            // Three letters in distinct roles:
+            //   X = first chain step (D1→D2)
+            //   Y = bridge step (D2→D3)
+            //   Z = the invention (carrier of the composite D1→D3)
+            // Two Mode 6 trials are tautological iff they have the same chain
+            // directions on the same letters in the same roles AND bind the same
+            // invention letter — i.e., a verbatim restatement of the same
+            // construction. Including Z ensures the invention-carrier is part of
+            // the identity, so the tautology guard treats the whole premise.
+            if (m === 5) {
+                return `M5|${p[1]}|${p[2]}|${p[3]}|${syms[0]}|${syms[1]}|${syms[2]}`;
+            }
+
             // Unknown mode — fall back to literal key+syms
             return `${key}|${syms.join('')}`;
         }
@@ -1851,7 +1959,7 @@
             const rng = this.rng;
             const p = key.split('-');
             const m = p[0];
-            const slotCount = (m === 'M1') ? 3 : 2;
+            const slotCount = (m === 'M1' || m === 'M5') ? 3 : 2;
             const modeNum = m.replace('M', '');
             const prevKey = (history && history.length > 0) ? history[history.length - 1].key : null;
 
@@ -1983,6 +2091,22 @@
                 // falsifiable claim. Every premise is a real chain.
                 text = `${REL[p[1]]} to ${REL[p[2]]} of ${s1}, ${REL[p[2]]} to ${REL[p[3]]} of ${s2}, so ${REL[p[1]]} to ${REL[p[3]]} of ${s1}`;
             }
+            else if (m === 'M5') {
+                // Mode 6 (Recursive Invention): same chain footprint as Mode 5,
+                // but the composite (D1→D3) is REIFIED as a new entity — the
+                // invention — bound to a third letter (s3). The premise NEVER
+                // states the composite's directions in the final clause; it names
+                // only "invention of <Z>", so the user must construct the
+                // composite themselves to know what Z is. Surface:
+                //   "D1 to D2 of X, D2 to D3 of Y, so invention of Z"
+                // s1 = subject (first step), s2 = bridge (second step),
+                // s3 = the invention carrier. The invention's relational identity
+                // is the composite operator class; the n-back match is on whether
+                // that identity recurs. Z is carried forward by the interference
+                // engine into later trials' operand slots, forcing recall of the
+                // construction (recursive embedding across trials).
+                text = `${REL[p[1]]} to ${REL[p[2]]} of ${s1}, ${REL[p[2]]} to ${REL[p[3]]} of ${s2}, so invention of ${s3}`;
+            }
             else text = `${s1} is ${REL[p[1]]} of ${s2}`;
 
             return { text, syms: result.syms, pattern: result.pattern };
@@ -2012,6 +2136,11 @@
                 text = `${REL[sA[0]]} to ${REL[sA[1]]} of ${s1}, as ${REL[sB[0]]} to ${REL[sB[1]]} of ${s2}`;
             } else if (m === 'M4') {
                 text = `${REL[p[1]]} to ${REL[p[2]]} of ${s1}, ${REL[p[2]]} to ${REL[p[3]]} of ${s2}, so ${REL[p[1]]} to ${REL[p[3]]} of ${s1}`;
+            } else if (m === 'M5') {
+                // Mode 6 (Recursive Invention): 3 letters. s1=subject, s2=bridge,
+                // s3=invention carrier. The final clause names only "invention of
+                // <Z>" — the composite directions are never stated.
+                text = `${REL[p[1]]} to ${REL[p[2]]} of ${s1}, ${REL[p[2]]} to ${REL[p[3]]} of ${s2}, so invention of ${s3}`;
             } else {
                 text = `${s1} is ${REL[p[1]]} of ${s2}`;
             }
@@ -2392,7 +2521,7 @@
 
             // Per-mode breakdown. Internal mode keys are 0–5; displayed as 1–6.
             let modeBreakdown = '';
-            const modeNames = ['Standard Linear','Semantic Tensor','Analogical Homology','Algebraic Symmetry','Transitive Composition'];
+            const modeNames = ['Standard Linear','Semantic Tensor','Analogical Homology','Algebraic Symmetry','Transitive Composition','Recursive Invention'];
             for (const k of Object.keys(this.modeStats)) {
                 const ms = this.modeStats[k];
                 if (ms.scored === 0) continue;
@@ -2421,7 +2550,7 @@
                 const ipctActual = Math.round((interfered / totalPatterns) * 100);
                 const dirAvg = this.dirConflictTrials > 0 ? (this.dirConflictTotal / this.dirConflictTrials) : 0;
                 // Per-mode max conflict (matches modeMaxConflict in engine)
-                const modeMaxLookup = {'0':3,'1':6,'2':6,'3':12,'4':9};
+                const modeMaxLookup = {'0':3,'1':6,'2':6,'3':12,'4':9,'5':9};
                 const sessionMode = document.getElementById('logic-mode').value;
                 const dirMax = modeMaxLookup[sessionMode] || 3;
                 const dirPct = Math.round((dirAvg / dirMax) * 100);
@@ -2697,7 +2826,7 @@
             // trial is a match — it only removes the surface inversion/repeat.
             {
                 const mNum = parseInt(mode);
-                const slotCount = (mNum === 2) ? 4 : (mNum === 1) ? 3 : 2;
+                const slotCount = (mNum === 2) ? 4 : (mNum === 1 || mNum === 5) ? 3 : 2;
                 // Build the set of canonical forms for EVERY trial still in the
                 // working history (the full window the user could remember).
                 const historyCanon = new Set();
