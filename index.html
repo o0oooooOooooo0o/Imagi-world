@@ -129,6 +129,11 @@
     .toggle-row label { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; color: #888; margin: 0; cursor: pointer; }
     .toggle-row input { width: 18px; height: 18px; accent-color: var(--yellow); }
 
+    .delta-rate-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+    .delta-rate-row .drl { font-size: 0.65rem; color: #888; text-transform: uppercase; letter-spacing: 1.5px; font-weight: bold; margin-right: 2px; }
+    .delta-rate-btn { padding: 7px 13px; font-size: 0.7rem; font-weight: 700; letter-spacing: 1px; border-radius: 8px; background: #151921; color: var(--yellow); border: 1px solid #302810; }
+    .delta-rate-btn.on { background: var(--yellow); color: #000; box-shadow: 0 0 12px rgba(255, 215, 0, 0.4); }
+
     .button-group { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
     button { padding: 18px; border-radius: 14px; border: none; font-weight: 900; cursor: pointer; text-transform: uppercase; transition: 0.2s; font-family: inherit; touch-action: manipulation; }
     button:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
@@ -350,6 +355,17 @@
           <label><input type="checkbox" id="mute-click"> Mute attention pulse</label>
           <label><input type="checkbox" id="confirm-stop" checked> Confirm before sever</label>
           <label title="Listen and practice mentally — no scoring, no right/wrong feedback shown"><input type="checkbox" id="practice-mode"> Practice mode (no feedback)</label>
+          <label title="A deep, low delta-frequency ambient drone (selectable binaural beat, 1–3 Hz) that plays continuously under the premises"><input type="checkbox" id="delta-bg"> Delta-wave background</label>
+      </div>
+      <div class="control-group">
+          <label for="delta-vol">Delta Background Volume: <span id="delta-vol-val" style="color:var(--yellow)">35%</span></label>
+          <input type="range" id="delta-vol" min="0" max="100" step="5" value="35" aria-label="Delta-wave background volume">
+          <div class="delta-rate-row" role="group" aria-label="Delta wave frequency">
+              <span class="drl">Delta rate</span>
+              <button type="button" class="delta-rate-btn" data-hz="1">1 Hz</button>
+              <button type="button" class="delta-rate-btn on" data-hz="2">2 Hz</button>
+              <button type="button" class="delta-rate-btn" data-hz="3">3 Hz</button>
+          </div>
       </div>
       <div class="button-group">
           <button id="start-btn" aria-label="Start session">Initialize Link</button>
@@ -599,6 +615,8 @@
             this.rng = new Mulberry32((Date.now() ^ Math.floor(performance.now() * 1000)) >>> 0);
             this.synth = window.speechSynthesis || null;
             this.audioCtx = null;
+            this._delta = null;        // running delta-wave background graph, or null
+            this._deltaHz = 2;         // selected delta beat rate (Hz): 1, 2, or 3
             this.voice = null;
             this.wakeLock = null;
             this.epoch = 0;
@@ -761,9 +779,23 @@
             persistSlider('prob-slider', e => $('prob-val').textContent = e.target.value + "%");
             persistSlider('rate-slider', e => $('rate-val').textContent = parseFloat(e.target.value).toFixed(2) + 'x');
             persistSlider('interference-slider', e => $('interference-val').textContent = e.target.value + '%');
+            persistSlider('delta-vol', e => { $('delta-vol-val').textContent = e.target.value + '%'; this.setDeltaVolume(); });
 
             $('keyboard').onchange = e => { $('kbd-hint').style.display = e.target.checked ? 'block' : 'none'; this.saveSettings(); };
             $('audio-only').onchange = e => { $('hide-text').disabled = e.target.checked; this.saveSettings(); };
+            // Delta-wave background: toggle the continuous bed on/off live. A
+            // checkbox click is a user gesture, so starting audio here is allowed
+            // — this lets the user preview and balance the bed before a session,
+            // and the bed simply continues once a session begins.
+            $('delta-bg').onchange = e => {
+                if (e.target.checked) { try { this.deltaStart(); } catch(_) {} }
+                else { try { this.deltaStop(); } catch(_) {} }
+                this.saveSettings();
+            };
+            // Delta beat-rate selector (1/2/3 Hz).
+            document.querySelectorAll('.delta-rate-btn').forEach(b => {
+                b.onclick = () => this.selectDeltaRate(parseInt(b.dataset.hz, 10), b);
+            });
             ['hide-text','haptic','adaptive','mute-click','confirm-stop','practice-mode'].forEach(id => {
                 $(id).onchange = () => this.saveSettings();
             });
@@ -916,7 +948,10 @@
                     adaptive: this.$('adaptive').checked,
                     muteClick: this.$('mute-click').checked,
                     confirmStop: this.$('confirm-stop').checked,
-                    practiceMode: this.$('practice-mode').checked
+                    practiceMode: this.$('practice-mode').checked,
+                    deltaBg: this.$('delta-bg').checked,
+                    deltaVol: this.$('delta-vol').value,
+                    deltaHz: this._deltaHz
                 };
                 localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
             } catch(_) {}
@@ -947,7 +982,12 @@
                 if (s.prob) { $('prob-slider').value = s.prob; $('prob-val').textContent = s.prob + "%"; }
                 if (s.rate) { $('rate-slider').value = s.rate; $('rate-val').textContent = parseFloat(s.rate).toFixed(2) + 'x'; }
                 if (s.interference !== undefined) { $('interference-slider').value = s.interference; $('interference-val').textContent = s.interference + '%'; }
-                ['hideText:hide-text','audioOnly:audio-only','keyboard','haptic','adaptive','muteClick:mute-click','confirmStop:confirm-stop','practiceMode:practice-mode']
+                if (s.deltaVol !== undefined) { $('delta-vol').value = s.deltaVol; $('delta-vol-val').textContent = s.deltaVol + '%'; }
+                if (s.deltaHz !== undefined) {
+                    this._deltaHz = Math.max(1, Math.min(3, parseInt(s.deltaHz, 10) || 2));
+                    document.querySelectorAll('.delta-rate-btn').forEach(b => b.classList.toggle('on', parseInt(b.dataset.hz, 10) === this._deltaHz));
+                }
+                ['hideText:hide-text','audioOnly:audio-only','keyboard','haptic','adaptive','muteClick:mute-click','confirmStop:confirm-stop','practiceMode:practice-mode','deltaBg:delta-bg']
                   .forEach(pair => {
                     const [key, id] = pair.includes(':') ? pair.split(':') : [pair, pair];
                     if (s[key] !== undefined) $(id).checked = s[key];
@@ -2671,6 +2711,12 @@
                     }
                 } catch (_) {}
 
+                // Delta-wave background: if the option is on, begin the continuous
+                // bed now. start() is a user gesture, so creating/resuming the
+                // audio context here is permitted. Idempotent — a no-op if the
+                // bed is already playing (e.g. the user previewed it while idle).
+                try { if (document.getElementById('delta-bg').checked) this.deltaStart(); } catch(_) {}
+
                 // CRITICAL ROBUSTNESS: wake-lock is FIRE-AND-FORGET. Awaiting it
                 // can hang on devices where the Wake Lock API stalls or where the
                 // promise never settles. The game must never wait on it.
@@ -2718,6 +2764,7 @@
                 this.paused = false;
                 document.getElementById('paused-overlay').classList.remove('show');
                 document.getElementById('pause-btn').textContent = 'Pause';
+                try { this.deltaDuck(true); } catch(_) {}
                 const pauseDuration = Date.now() - this.lastPauseStart;
                 this.endTime += pauseDuration;
                 this.totalPausedMs += pauseDuration;
@@ -2742,6 +2789,7 @@
                 this.lastPauseStart = Date.now();
                 document.getElementById('paused-overlay').classList.add('show');
                 document.getElementById('pause-btn').textContent = 'Resume';
+                try { this.deltaDuck(false); } catch(_) {}
                 clearTimeout(this.timer);
                 try { this.synth && this.synth.cancel(); } catch(_) {}
 
@@ -2815,6 +2863,7 @@
             this.pauseResolvers = [];
             resolvers.forEach(r => r());
             try { this.synth && this.synth.cancel(); } catch(_) {}
+            try { this.deltaStop(); } catch(_) {}
             this.releaseWakeLock();
 
             document.getElementById('paused-overlay').classList.remove('show');
@@ -3615,6 +3664,191 @@
                 osc.connect(g); g.connect(this.audioCtx.destination);
                 osc.start(t); osc.stop(t + 0.15);
             } catch(_) {}
+        }
+
+        // ===== Delta-wave background drone =====
+        // A deep, dark ambient bed that runs continuously beneath the spoken
+        // premises while a session is active (and as a live preview when the
+        // option is toggled on). Faithful port of the "delta" entrainment pad:
+        // an octave-low sine stack (D2/A2/D3/A3), a close-detuned binaural pair
+        // around 110 Hz whose beat eases from the top of the delta band (4 Hz)
+        // down to the 2 Hz target over the first minute, a filtered brown-noise
+        // rumble for body on small speakers, an isochronic tremolo at the same
+        // rate, and a very slow drift so the bed breathes. Everything sits below
+        // ~220 Hz and is low-passed, so it never masks speech formants
+        // (300-3400 Hz) — the premises stay perfectly intelligible. Built on its
+        // own graph straight to the destination; it shares nothing with the
+        // attention click or speech, which simply sum at the output. A user
+        // volume (delta-vol) scales a master gain so the bed can be balanced
+        // against the voice.
+
+        // 0..1 master gain from the volume slider (0-100%).
+        deltaVolume() {
+            const el = document.getElementById('delta-vol');
+            let v = el ? parseInt(el.value, 10) : 35;
+            if (isNaN(v)) v = 35;
+            return Math.max(0, Math.min(100, v)) / 100;
+        }
+
+        // Selected delta beat rate (Hz), clamped to the 1-3 Hz delta band.
+        deltaRate() {
+            const hz = this._deltaHz;
+            return (hz === 1 || hz === 2 || hz === 3) ? hz : 2;
+        }
+
+        // Choose the delta beat rate (1/2/3 Hz). Updates the button state, and if
+        // the bed is currently playing, restarts it so the new rate is audible
+        // immediately (the 3 s fade of the old graph crossfades into the new one).
+        selectDeltaRate(hz, btn) {
+            hz = parseInt(hz, 10); if (isNaN(hz)) hz = 2;
+            this._deltaHz = Math.max(1, Math.min(3, hz));
+            document.querySelectorAll('.delta-rate-btn').forEach(b => {
+                b.classList.toggle('on', parseInt(b.dataset.hz, 10) === this._deltaHz);
+            });
+            if (this._delta) { this.deltaStop(); this.deltaStart(); }
+            this.saveSettings();
+        }
+
+        // Live-adjust the running bed's level when the slider moves. Respects a
+        // paused session: while paused the bed is ducked to silence, so a volume
+        // change is just remembered (the new level is applied on resume by
+        // deltaDuck, which re-reads deltaVolume) rather than un-ducking the bed.
+        setDeltaVolume() {
+            if (!this._delta || !this._delta.master || !this.audioCtx) return;
+            if (this.running && this.paused) return;          // stay ducked while paused
+            const t = this.audioCtx.currentTime;
+            const g = this._delta.master.gain;
+            try {
+                g.cancelScheduledValues(t);
+                g.setValueAtTime(Math.max(g.value, 0.0001), t);
+                g.linearRampToValueAtTime(Math.max(0.0001, this.deltaVolume()), t + 0.2);
+            } catch(_) {}
+        }
+
+        // Duck the bed to silence on pause and back up on resume WITHOUT tearing
+        // down the graph, so a brief pause doesn't restart the 60 s settle.
+        deltaDuck(on) {
+            if (!this._delta || !this._delta.master || !this.audioCtx) return;
+            const t = this.audioCtx.currentTime;
+            const g = this._delta.master.gain;
+            const target = on ? Math.max(0.0001, this.deltaVolume()) : 0.0001;
+            try {
+                g.cancelScheduledValues(t);
+                g.setValueAtTime(Math.max(g.value, 0.0001), t);
+                g.exponentialRampToValueAtTime(target, t + 0.8);
+            } catch(_) {}
+        }
+
+        deltaStart() {
+            if (this._delta) return;                         // already running
+            // Create the context if it doesn't exist yet (callers are user
+            // gestures — the start button or the checkbox — so this is allowed).
+            if (!this.audioCtx) {
+                try {
+                    const Ctx = window.AudioContext || window.webkitAudioContext;
+                    if (Ctx) this.audioCtx = new Ctx();
+                } catch(_) { return; }
+            }
+            const ac = this.audioCtx; if (!ac) return;
+            if (ac.state === 'suspended') { try { ac.resume(); } catch(_) {} }
+
+            const t = ac.currentTime;
+            const hasPan = (typeof ac.createStereoPanner === 'function');
+            const SETTLE = 60;                               // seconds to ease the rate in
+            const aEnd = this.deltaRate();                   // delta target rate (Hz): 1, 2, or 3
+            const aTop = Math.min(4, aEnd + 2);              // ease in from the top of the delta band
+            const bCenter = 110;                             // binaural carrier centre (delta: an octave low)
+
+            // user-controlled master; starts silent and swells in
+            const master = ac.createGain();
+            master.gain.value = 0.0001;
+            master.connect(ac.destination);
+
+            const mix  = ac.createGain(); mix.gain.value = 1;                       // carrier sum
+            const trem = ac.createGain(); trem.gain.value = 0.5;                    // pulse stage (delta rate)
+            const hp   = ac.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 45;  hp.Q.value = 0.5; // keep the sub foundation
+            const lp   = ac.createBiquadFilter(); lp.type = 'lowpass';  lp.frequency.value = 480; lp.Q.value = 0.4; // sits low and dark
+            const env  = ac.createGain();                                           // master swell + slow drift
+            env.gain.setValueAtTime(0.0001, t);
+            env.gain.exponentialRampToValueAtTime(1.8, t + 13);                     // slow, deep onset
+
+            mix.connect(trem); trem.connect(hp); hp.connect(lp); lp.connect(env); env.connect(master);
+
+            const osc = [], node = [master, mix, trem, hp, lp, env];
+            const voice = (freq, gain, pan) => {
+                const o = ac.createOscillator(), g = ac.createGain();
+                o.type = 'sine'; o.frequency.value = freq; g.gain.value = gain;
+                if (hasPan && pan) { const p = ac.createStereoPanner(); p.pan.value = pan; o.connect(g); g.connect(p); p.connect(mix); node.push(p); }
+                else { o.connect(g); g.connect(mix); }
+                o.start(t); osc.push(o); node.push(g); return o;
+            };
+
+            // DEEP DELTA voices: an octave below an alpha pad, dark, no bright presence tones.
+            voice(73.42,  0.052, -0.25);   // D2  sub foundation, felt more than heard
+            voice(110.00, 0.070,  0.25);   // A2  low warm body
+            const bL = voice(bCenter - aTop / 2, 0.084, -1.00);   // close-detuned low pair: the deep binaural beat
+            const bR = voice(bCenter + aTop / 2, 0.084,  1.00);
+            voice(146.83, 0.054,  0.00);   // D3  a touch of warmth above
+            voice(220.00, 0.030, -0.20);   // A3  faint, so it still reads on a phone speaker
+
+            // a faint dark rumble (brown noise) — the oceanic "deep sleep" texture; unlike the
+            // sub sines it carries on a small phone speaker. It runs through the pad so it
+            // pulses and swells with it.
+            const nlen = Math.floor(ac.sampleRate * 4), nbuf = ac.createBuffer(1, nlen, ac.sampleRate), nd = nbuf.getChannelData(0);
+            let nlast = 0;
+            for (let nk = 0; nk < nlen; nk++) { const nw = Math.random() * 2 - 1; nlast = (nlast + 0.02 * nw) / 1.02; nd[nk] = nlast * 2.0; }
+            const nsrc = ac.createBufferSource(); nsrc.buffer = nbuf; nsrc.loop = true;
+            const nlp = ac.createBiquadFilter(); nlp.type = 'lowpass'; nlp.frequency.value = 210; nlp.Q.value = 0.3;
+            const ngain = ac.createGain(); ngain.gain.value = 0.07;
+            nsrc.connect(nlp); nlp.connect(ngain); ngain.connect(mix);
+            nsrc.start(t); osc.push(nsrc); node.push(nlp, ngain);
+
+            // the binaural beat eases from aTop down to aEnd over the first minute, settling on 2 Hz.
+            bL.frequency.setValueAtTime(bCenter - aTop / 2, t); bL.frequency.linearRampToValueAtTime(bCenter - aEnd / 2, t + SETTLE);
+            bR.frequency.setValueAtTime(bCenter + aTop / 2, t); bR.frequency.linearRampToValueAtTime(bCenter + aEnd / 2, t + SETTLE);
+
+            // the pulse: an isochronic tremolo at the delta rate over the whole pad, eased in
+            // from the band top so it stays locked with the binaural beat. Deep and slow.
+            const lfoRate = ac.createOscillator(); lfoRate.type = 'sine';
+            lfoRate.frequency.setValueAtTime(aTop, t); lfoRate.frequency.linearRampToValueAtTime(aEnd, t + SETTLE);
+            const lfoRateGain = ac.createGain(); lfoRateGain.gain.value = 0.22;
+            lfoRate.connect(lfoRateGain); lfoRateGain.connect(trem.gain); lfoRate.start(t);
+            osc.push(lfoRate); node.push(lfoRateGain);
+
+            // a very slow drift underneath, so the pad still breathes
+            const drift = ac.createOscillator(); drift.type = 'sine'; drift.frequency.value = 0.045;
+            const driftGain = ac.createGain(); driftGain.gain.value = 0.18;
+            drift.connect(driftGain); driftGain.connect(env.gain); drift.start(t);
+            osc.push(drift); node.push(driftGain);
+
+            this._delta = { osc, node, master };
+
+            // swell the master up to the user's set volume
+            const vol = this.deltaVolume();
+            try {
+                master.gain.setValueAtTime(0.0001, t);
+                master.gain.exponentialRampToValueAtTime(Math.max(0.0001, vol), t + 4);
+            } catch(_) {}
+        }
+
+        deltaStop() {
+            const d = this._delta; if (!d) return;
+            this._delta = null;                              // allow a fresh start immediately
+            const ac = this.audioCtx; if (!ac) {
+                (d.osc || []).forEach(o => { try { o.stop(); } catch(_) {} });
+                (d.node || []).forEach(n => { try { n && n.disconnect(); } catch(_) {} });
+                return;
+            }
+            const t = ac.currentTime, fade = 3.0;
+            try {
+                d.master.gain.cancelScheduledValues(t);
+                d.master.gain.setValueAtTime(Math.max(d.master.gain.value, 0.0001), t);
+                d.master.gain.exponentialRampToValueAtTime(0.0001, t + fade);   // slow fade-out
+            } catch(_) {}
+            setTimeout(() => {
+                (d.osc || []).forEach(o => { try { o.stop(); } catch(_) {} });
+                (d.node || []).forEach(n => { try { n && n.disconnect(); } catch(_) {} });
+            }, (fade + 0.3) * 1000);
         }
 
         recordModeStats(mode, scored, correct, isMatch, userMatch) {
