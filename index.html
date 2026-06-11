@@ -358,8 +358,8 @@
           <label title="A deep, low delta-frequency ambient drone (selectable binaural beat, 1–3 Hz) that plays continuously under the premises"><input type="checkbox" id="delta-bg"> Delta-wave background</label>
       </div>
       <div class="control-group">
-          <label for="delta-vol">Delta Background Volume: <span id="delta-vol-val" style="color:var(--yellow)">60%</span></label>
-          <input type="range" id="delta-vol" min="0" max="150" step="5" value="60" aria-label="Delta-wave background volume">
+          <label for="delta-vol">Delta Background Volume: <span id="delta-vol-val" style="color:var(--yellow)">100%</span></label>
+          <input type="range" id="delta-vol" min="0" max="150" step="5" value="100" aria-label="Delta-wave background volume">
           <div class="delta-rate-row" role="group" aria-label="Delta wave frequency">
               <span class="drl">Delta rate</span>
               <button type="button" class="delta-rate-btn" data-hz="1">1 Hz</button>
@@ -1153,7 +1153,11 @@
                 const utter = new SpeechSynthesisUtterance(text);
                 if (this.voice) utter.voice = this.voice;
                 utter.rate = Math.max(0.1, Math.min(2.0, rate));
-                utter.pitch = 1.0; utter.volume = 1.0;
+                // Premises are spoken a touch below full scale so they aren't so
+                // loud that the device volume must be dropped (which would bury the
+                // delta bed), and so they grab the audio focus less aggressively —
+                // which helps keep the bed from being ducked/cut off during speech.
+                utter.pitch = 1.0; utter.volume = 0.8;
                 utter.lang = (this.voice && this.voice.lang) || 'en-US';
 
                 const myEpoch = this.epoch;
@@ -3694,17 +3698,18 @@
         // against the voice.
 
         // 0..1 master gain from the volume slider (0-100%).
-        // Master gain from the volume slider (0-150%). The bed is deep bass —
-        // perceptually quiet, and small speakers roll it off — so this maps HOT:
-        // 100% -> 1.6x, and above 100% it pushes further (150% -> 3.0x). An output
-        // limiter in deltaStart keeps the sustained signal clean at these levels,
-        // so "louder" never becomes amplitude distortion.
+        // Master gain from the volume slider (0-150%). LINEAR so the slider
+        // genuinely scales loudness across the whole range (the previous build's
+        // aggressive limiter flattened everything above ~100% to one ceiling, so
+        // raising the slider did nothing audible). Loudness itself comes from the
+        // boosted voices + opened tone in deltaStart; here 100% -> 1.0x and
+        // 150% -> 1.5x, a real, audible increase. A GENTLE safety limiter in
+        // deltaStart only catches rare peaks near full scale.
         deltaVolume() {
             const el = document.getElementById('delta-vol');
-            let v = el ? parseInt(el.value, 10) : 60;
-            if (isNaN(v)) v = 60;
-            v = Math.max(0, Math.min(150, v)) / 100;          // 0 .. 1.5
-            return v <= 1 ? v * 1.6 : 1.6 + (v - 1) * 2.8;    // 100%->1.6, 150%->3.0
+            let v = el ? parseInt(el.value, 10) : 100;
+            if (isNaN(v)) v = 100;
+            return Math.max(0, Math.min(150, v)) / 100;       // 0 .. 1.5, linear
         }
 
         // Selected delta beat rate (Hz), clamped to the 1-3 Hz delta band.
@@ -3779,15 +3784,16 @@
             // user-controlled master; starts silent and swells in
             const master = ac.createGain();
             master.gain.value = 0.0001;
-            // Output limiter: lets the bed be pushed loud (up to 150%) WITHOUT the
-            // sustained digital clipping a raw high gain would cause. Transparent
-            // below threshold; clamps peaks near full scale. Falls back to a plain
-            // connection if the API is unavailable.
+            // GENTLE safety limiter — only catches rare peaks right at full scale
+            // so the bed can't hard-clip, while leaving the whole slider range
+            // free to scale in loudness. (A hard limiter here was what made 100%
+            // and 150% sound identical.) Falls back to a plain connection if the
+            // API is unavailable.
             let limNode = null;
             if (typeof ac.createDynamicsCompressor === 'function') {
                 limNode = ac.createDynamicsCompressor();
                 try {
-                    limNode.threshold.value = -3; limNode.knee.value = 0; limNode.ratio.value = 20;
+                    limNode.threshold.value = -1; limNode.knee.value = 6; limNode.ratio.value = 6;
                     limNode.attack.value = 0.003; limNode.release.value = 0.25;
                 } catch(_) {}
                 master.connect(limNode); limNode.connect(ac.destination);
@@ -3798,10 +3804,10 @@
             const mix  = ac.createGain(); mix.gain.value = 1;                       // carrier sum
             const trem = ac.createGain(); trem.gain.value = 0.5;                    // pulse stage (delta rate)
             const hp   = ac.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 45;  hp.Q.value = 0.5; // keep the sub foundation
-            const lp   = ac.createBiquadFilter(); lp.type = 'lowpass';  lp.frequency.value = 700; lp.Q.value = 0.4; // warm, but open enough to carry on small speakers
+            const lp   = ac.createBiquadFilter(); lp.type = 'lowpass';  lp.frequency.value = 1100; lp.Q.value = 0.4; // opened up so the bed actually carries (esp. on small speakers)
             const env  = ac.createGain();                                           // master swell + slow drift
             env.gain.setValueAtTime(0.0001, t);
-            env.gain.exponentialRampToValueAtTime(1.8, t + 13);                     // slow, deep onset
+            env.gain.exponentialRampToValueAtTime(1.0, t + 13);                     // slow onset to unity (loudness now lives in the voices + master)
 
             mix.connect(trem); trem.connect(hp); hp.connect(lp); lp.connect(env); env.connect(master);
 
@@ -3815,13 +3821,16 @@
                 o.start(t); osc.push(o); node.push(g); return o;
             };
 
-            // DEEP DELTA voices: an octave below an alpha pad, dark, no bright presence tones.
-            voice(73.42,  0.052, -0.25);   // D2  sub foundation, felt more than heard
-            voice(110.00, 0.070,  0.25);   // A2  low warm body
-            const bL = voice(bCenter - aTop / 2, 0.084, -1.00);   // close-detuned low pair: the deep binaural beat
-            const bR = voice(bCenter + aTop / 2, 0.084,  1.00);
-            voice(146.83, 0.054,  0.00);   // D3  a touch of warmth above
-            voice(220.00, 0.030, -0.20);   // A3  faint, so it still reads on a phone speaker
+            // DELTA voices. Boosted well above the original (which was deliberately
+            // near-silent), with extra weight on the 110-220 Hz voices that actually
+            // carry on real speakers, so the bed is genuinely loud. The sub (D2) is
+            // kept modest — it's mostly felt and would just eat headroom.
+            voice(73.42,  0.060, -0.25);   // D2  sub foundation
+            voice(110.00, 0.130,  0.25);   // A2  low warm body
+            const bL = voice(bCenter - aTop / 2, 0.150, -1.00);   // close-detuned low pair: the deep binaural beat
+            const bR = voice(bCenter + aTop / 2, 0.150,  1.00);
+            voice(146.83, 0.120,  0.00);   // D3  warmth/presence
+            voice(220.00, 0.090, -0.20);   // A3  carries clearly on small speakers
 
             // a faint dark rumble (brown noise) — the oceanic "deep sleep" texture; unlike the
             // sub sines it carries on a small phone speaker. It runs through the pad so it
@@ -3831,7 +3840,7 @@
             for (let nk = 0; nk < nlen; nk++) { const nw = Math.random() * 2 - 1; nlast = (nlast + 0.02 * nw) / 1.02; nd[nk] = nlast * 2.0; }
             const nsrc = ac.createBufferSource(); nsrc.buffer = nbuf; nsrc.loop = true;
             const nlp = ac.createBiquadFilter(); nlp.type = 'lowpass'; nlp.frequency.value = 210; nlp.Q.value = 0.3;
-            const ngain = ac.createGain(); ngain.gain.value = 0.07;
+            const ngain = ac.createGain(); ngain.gain.value = 0.090;
             nsrc.connect(nlp); nlp.connect(ngain); ngain.connect(mix);
             nsrc.start(t); osc.push(nsrc); node.push(nlp, ngain);
 
@@ -3875,7 +3884,7 @@
                 if (this._delta && this.audioCtx && this.audioCtx.state !== 'running') {
                     try { this.audioCtx.resume(); } catch(_) {}
                 }
-            }, 350);
+            }, 150);
 
             // swell the master up to the user's set volume
             const vol = this.deltaVolume();
