@@ -358,8 +358,8 @@
           <label title="A deep, low delta-frequency ambient drone (selectable binaural beat, 1–3 Hz) that plays continuously under the premises"><input type="checkbox" id="delta-bg"> Delta-wave background</label>
       </div>
       <div class="control-group">
-          <label for="delta-vol">Delta Background Volume: <span id="delta-vol-val" style="color:var(--yellow)">35%</span></label>
-          <input type="range" id="delta-vol" min="0" max="100" step="5" value="35" aria-label="Delta-wave background volume">
+          <label for="delta-vol">Delta Background Volume: <span id="delta-vol-val" style="color:var(--yellow)">60%</span></label>
+          <input type="range" id="delta-vol" min="0" max="150" step="5" value="60" aria-label="Delta-wave background volume">
           <div class="delta-rate-row" role="group" aria-label="Delta wave frequency">
               <span class="drl">Delta rate</span>
               <button type="button" class="delta-rate-btn" data-hz="1">1 Hz</button>
@@ -911,6 +911,11 @@
                 if (this.running && this.synth && !this.paused) {
                     try { this.synth.resume(); } catch (_) {}
                 }
+                // Redundant backstop for the delta bed's context (the 350 ms
+                // watchdog in deltaStart is the primary).
+                if (this._delta && this.audioCtx && this.audioCtx.state !== 'running') {
+                    try { this.audioCtx.resume(); } catch(_) {}
+                }
             }, 5000);
 
             // Bluetooth/audio device change recovery
@@ -1160,8 +1165,14 @@
                     this._speakInProgress = false;
                     clearTimeout(safety);
                     clearInterval(poll);
+                    // Speech just released the audio session — make sure the delta
+                    // bed's context is running again so it doesn't stay silenced.
+                    try { if (this._delta && this.audioCtx && this.audioCtx.state !== 'running') this.audioCtx.resume(); } catch(_) {}
                     resolve();
                 };
+                // If speech grabs the audio session as it begins, nudge the bed's
+                // context back to running immediately.
+                utter.onstart = () => { try { if (this._delta && this.audioCtx) this.audioCtx.resume(); } catch(_) {} };
                 utter.onend = finish;
                 utter.onerror = finish;
 
@@ -3683,11 +3694,17 @@
         // against the voice.
 
         // 0..1 master gain from the volume slider (0-100%).
+        // Master gain from the volume slider (0-150%). The bed is deep bass —
+        // perceptually quiet, and small speakers roll it off — so this maps HOT:
+        // 100% -> 1.6x, and above 100% it pushes further (150% -> 3.0x). An output
+        // limiter in deltaStart keeps the sustained signal clean at these levels,
+        // so "louder" never becomes amplitude distortion.
         deltaVolume() {
             const el = document.getElementById('delta-vol');
-            let v = el ? parseInt(el.value, 10) : 35;
-            if (isNaN(v)) v = 35;
-            return Math.max(0, Math.min(100, v)) / 100;
+            let v = el ? parseInt(el.value, 10) : 60;
+            if (isNaN(v)) v = 60;
+            v = Math.max(0, Math.min(150, v)) / 100;          // 0 .. 1.5
+            return v <= 1 ? v * 1.6 : 1.6 + (v - 1) * 2.8;    // 100%->1.6, 150%->3.0
         }
 
         // Selected delta beat rate (Hz), clamped to the 1-3 Hz delta band.
@@ -3762,12 +3779,26 @@
             // user-controlled master; starts silent and swells in
             const master = ac.createGain();
             master.gain.value = 0.0001;
-            master.connect(ac.destination);
+            // Output limiter: lets the bed be pushed loud (up to 150%) WITHOUT the
+            // sustained digital clipping a raw high gain would cause. Transparent
+            // below threshold; clamps peaks near full scale. Falls back to a plain
+            // connection if the API is unavailable.
+            let limNode = null;
+            if (typeof ac.createDynamicsCompressor === 'function') {
+                limNode = ac.createDynamicsCompressor();
+                try {
+                    limNode.threshold.value = -3; limNode.knee.value = 0; limNode.ratio.value = 20;
+                    limNode.attack.value = 0.003; limNode.release.value = 0.25;
+                } catch(_) {}
+                master.connect(limNode); limNode.connect(ac.destination);
+            } else {
+                master.connect(ac.destination);
+            }
 
             const mix  = ac.createGain(); mix.gain.value = 1;                       // carrier sum
             const trem = ac.createGain(); trem.gain.value = 0.5;                    // pulse stage (delta rate)
             const hp   = ac.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 45;  hp.Q.value = 0.5; // keep the sub foundation
-            const lp   = ac.createBiquadFilter(); lp.type = 'lowpass';  lp.frequency.value = 480; lp.Q.value = 0.4; // sits low and dark
+            const lp   = ac.createBiquadFilter(); lp.type = 'lowpass';  lp.frequency.value = 700; lp.Q.value = 0.4; // warm, but open enough to carry on small speakers
             const env  = ac.createGain();                                           // master swell + slow drift
             env.gain.setValueAtTime(0.0001, t);
             env.gain.exponentialRampToValueAtTime(1.8, t + 13);                     // slow, deep onset
@@ -3775,6 +3806,7 @@
             mix.connect(trem); trem.connect(hp); hp.connect(lp); lp.connect(env); env.connect(master);
 
             const osc = [], node = [master, mix, trem, hp, lp, env];
+            if (limNode) node.push(limNode);
             const voice = (freq, gain, pan) => {
                 const o = ac.createOscillator(), g = ac.createGain();
                 o.type = 'sine'; o.frequency.value = freq; g.gain.value = gain;
@@ -3823,6 +3855,28 @@
 
             this._delta = { osc, node, master };
 
+            // ===== Keep the bed alive across spoken premises =====
+            // Speech synthesis (the premises) can seize the device audio session
+            // and push this AudioContext into 'suspended'/'interrupted', which
+            // silences or "clips" the drone for the duration of each utterance.
+            // Re-resume the context the instant it leaves the running state while
+            // the bed should be playing — via a statechange listener (immediate)
+            // and a short polling backstop (covers platforms that don't fire it).
+            if (!this._deltaResume) {
+                this._deltaResume = () => {
+                    if (this._delta && this.audioCtx && this.audioCtx.state !== 'running') {
+                        try { this.audioCtx.resume(); } catch(_) {}
+                    }
+                };
+                try { ac.addEventListener('statechange', this._deltaResume); } catch(_) {}
+            }
+            if (this._deltaWatch) { clearInterval(this._deltaWatch); }
+            this._deltaWatch = setInterval(() => {
+                if (this._delta && this.audioCtx && this.audioCtx.state !== 'running') {
+                    try { this.audioCtx.resume(); } catch(_) {}
+                }
+            }, 350);
+
             // swell the master up to the user's set volume
             const vol = this.deltaVolume();
             try {
@@ -3834,6 +3888,7 @@
         deltaStop() {
             const d = this._delta; if (!d) return;
             this._delta = null;                              // allow a fresh start immediately
+            if (this._deltaWatch) { clearInterval(this._deltaWatch); this._deltaWatch = null; }
             const ac = this.audioCtx; if (!ac) {
                 (d.osc || []).forEach(o => { try { o.stop(); } catch(_) {} });
                 (d.node || []).forEach(n => { try { n && n.disconnect(); } catch(_) {} });
